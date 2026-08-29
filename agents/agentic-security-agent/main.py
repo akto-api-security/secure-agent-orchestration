@@ -5,7 +5,7 @@ from bedrock_agentcore.runtime import serve_a2a
 from strands import Agent
 from strands.multiagent.a2a.executor import StrandsA2AExecutor
 
-from gateway_tool import search_akto_agentic_security_docs
+from gateway_tool import discover_gateway_tools
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -26,12 +26,15 @@ def build_agent(context_id: str) -> Agent:
         system_prompt=(
             "You are the Agentic Security Agent in the Agent Security Lab, representing "
             "Akto's Atlas, Argus, agentic security, MCP security, and A2A security domain. "
-            "For every incoming question, call search_akto_agentic_security_docs to "
-            "retrieve real Akto documentation before answering -- never rely on your own "
-            "prior knowledge alone. Give a clear, concise answer grounded in what the "
-            "tool returns, and note that it is sourced from Akto's documentation."
+            "You have tools discovered directly from Akto's Agentic Security MCP server -- "
+            "use the search/get-page style tools to retrieve real Akto documentation before "
+            "answering any question; never rely on your own prior knowledge alone. Give a "
+            "clear, concise answer grounded in what the tool returns, and note that it is "
+            "sourced from Akto's documentation. If, and only if, the user explicitly asks "
+            "you to submit or send feedback about the documentation, use the sendFeedback "
+            "tool with the feedback content they provided."
         ),
-        tools=[search_akto_agentic_security_docs],
+        tools=discover_gateway_tools(),
     )
 
 

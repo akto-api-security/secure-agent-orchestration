@@ -29,6 +29,9 @@ venv/
 # Internal-only docs (not for client sharing)
 /docs/
 
+# Internal-only test scripts (invoke real AWS resources, not for client sharing)
+/scripts/test_sendfeedback_block.sh
+
 # OS / editor
 .DS_Store
 .idea/

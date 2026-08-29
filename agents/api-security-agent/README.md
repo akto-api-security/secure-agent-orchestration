@@ -27,7 +27,7 @@ A2A response (artifact text)
 | File | Purpose |
 |---|---|
 | `main.py` | Builds the Strands `Agent` and starts it as an A2A server via `bedrock_agentcore.runtime.serve_a2a`. |
-| `gateway_tool.py` | One `@tool`: SigV4-signs `tools/list`/`tools/call` requests to the Phase 1 Gateway, scoped to the `mac-akto-api-mcp` target. Discovers the search tool and its input schema at runtime rather than hardcoding a tool name. |
+| `gateway_tool.py` | SigV4-signs `tools/list`/`tools/call` requests to the Phase 1 Gateway, scoped to the `mac-akto-api-mcp` target. **Phase 4.1:** discovers every tool the Gateway lists for this target (not just one hardcoded search tool) and exposes each as a Strands `MCPAgentTool` -- currently `searchDocumentation`, `getPage`, and `sendFeedback`. Cross-target tools are excluded by the `MCP_TARGET_PREFIX` namespace filter. |
 | `Dockerfile` | ARM64 container image, listens on `0.0.0.0:9000` (AgentCore's required A2A port/path). |
 | `requirements.txt` | `strands-agents[a2a]`, `bedrock-agentcore`, `boto3`, `requests`. |
 
@@ -63,6 +63,53 @@ Terraform can't create the `aws_bedrockagentcore_agent_runtime` resource
 until an image tagged `:latest` exists in the repo it references -- apply
 Terraform once to create the ECR repo, push the image, then apply again to
 create the runtime.
+
+## Rebuild and redeploy an already-running runtime (Phase 4.1)
+
+**Overwriting the `:latest` tag in ECR does not make the already-deployed
+AgentCore Runtime pick up the new image.** `container_uri` is pinned to that
+tag *string*; the running runtime keeps whatever digest it resolved to at
+creation/last-update time, and `terraform apply` won't detect a change either
+(Terraform only diffs the configured string, which hasn't changed). The
+AWS-supported way to force it is `UpdateAgentRuntime` (**not** `terraform
+apply`, and not recreating the runtime) -- same `agent-runtime-id`, same ARN,
+same IAM policies, just a new `agentRuntimeArtifact`. Pin to the pushed
+image's digest rather than `:latest` so the call is unambiguous:
+
+```bash
+# 1. Build and push as above, then grab the digest of what was just pushed
+DIGEST=$(aws ecr describe-images --repository-name asl-api-security-agent-dev \
+  --image-ids imageTag=latest --region us-east-1 \
+  --query 'imageDetails[0].imageDigest' --output text)
+
+# 2. Update the existing runtime in place (values below match the currently
+#    deployed config -- confirm with `get-agent-runtime` first if anything
+#    else may have changed since):
+aws bedrock-agentcore-control update-agent-runtime \
+  --agent-runtime-id asl_api_security_agent_dev-xxxxxxxxxx \
+  --agent-runtime-artifact "{\"containerConfiguration\":{\"containerUri\":\"${ECR_REPO}@${DIGEST}\"}}" \
+  --role-arn arn:aws:iam::000000000000:role/asl-api-security-agent-execution-dev \
+  --network-configuration networkMode=PUBLIC \
+  --protocol-configuration serverProtocol=A2A \
+  --environment-variables '{"BEDROCK_MODEL_ID":"us.anthropic.claude-haiku-4-5-20251001-v1:0","GATEWAY_REGION":"us-east-1","GATEWAY_URL":"https://asl-gateway-dev-xxxxxxxxxx.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp","MCP_TARGET_PREFIX":"mac-akto-api-mcp"}' \
+  --region us-east-1
+
+# 3. Confirm it actually took: status READY, containerUri now ends in
+#    @sha256:<the digest above>, agentRuntimeVersion incremented.
+aws bedrock-agentcore-control get-agent-runtime \
+  --agent-runtime-id asl_api_security_agent_dev-xxxxxxxxxx --region us-east-1
+```
+
+After this, send one fresh test invoke (see "Test the deployed agent" below)
+and check CloudWatch: the old `UserWarning`/`DeprecationWarning` about a
+shared `Agent` instance and non-compliant A2A streaming should be gone --
+current source already has the `agent_factory=`/`enable_a2a_compliant_streaming=True`
+fix, this just confirms the *deployed* image actually reflects it.
+
+Terraform's own state still says `container_uri = "...:latest"` after this --
+expected, not a bug. A future `terraform apply` will reconcile it back to the
+`:latest` string (harmless, since that tag still points at the same image),
+but review the plan diff before applying rather than assuming it's a no-op.
 
 ## Test locally (no AWS needed except Gateway access)
 
