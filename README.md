@@ -50,8 +50,8 @@ DynamoDB; signed grants use AWS KMS.
 
 | Path | Purpose | Status |
 |---|---|---|
-| `infra/` | Terraform: state backend + per-environment stacks | Phase 0: backend only |
-| `agents/` | Orchestrator, API Security Agent, Agentic Security Agent | Placeholder |
+| `infra/` | Terraform: state backend + per-environment stacks | Phase 1 (Gateway) deployed; Phase 2 (delegated agents) built, not yet deployed |
+| `agents/` | Orchestrator, API Security Agent, Agentic Security Agent | API/Agentic Security Agents: Phase 2 code built, not yet deployed. Orchestrator: placeholder (Phase 3) |
 | `gateway/` | AgentCore Gateway config, REQUEST interceptor Lambda, MCP targets | Placeholder |
 | `policy/` | OPA policies | Placeholder |
 | `approval-workflow/` | Approval Agent/workflow, DynamoDB + KMS | Placeholder |

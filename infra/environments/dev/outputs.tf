@@ -27,3 +27,43 @@ output "target_ids" {
   description = "Gateway target IDs, keyed by target name."
   value       = module.agentcore_gateway.target_ids
 }
+
+output "api_security_agent_ecr_repository_url" {
+  description = "ECR repository URL to push the API Security Agent's container image to, before first apply of its agent runtime."
+  value       = module.api_security_agent.ecr_repository_url
+}
+
+output "api_security_agent_runtime_arn" {
+  description = "ARN of the API Security Agent's AgentCore Runtime."
+  value       = module.api_security_agent.agent_runtime_arn
+}
+
+output "api_security_agent_execution_role_arn" {
+  description = "ARN of the API Security Agent's AgentCore Runtime execution role."
+  value       = module.api_security_agent.execution_role_arn
+}
+
+output "api_security_agent_invoke_policy_arn" {
+  description = "ARN of the IAM policy granting bedrock-agentcore:InvokeAgentRuntime/GetAgentCard on the API Security Agent. Attach it to whichever identity you'll test with."
+  value       = module.api_security_agent.invoke_policy_arn
+}
+
+output "agentic_security_agent_ecr_repository_url" {
+  description = "ECR repository URL to push the Agentic Security Agent's container image to, before first apply of its agent runtime."
+  value       = module.agentic_security_agent.ecr_repository_url
+}
+
+output "agentic_security_agent_runtime_arn" {
+  description = "ARN of the Agentic Security Agent's AgentCore Runtime."
+  value       = module.agentic_security_agent.agent_runtime_arn
+}
+
+output "agentic_security_agent_execution_role_arn" {
+  description = "ARN of the Agentic Security Agent's AgentCore Runtime execution role."
+  value       = module.agentic_security_agent.execution_role_arn
+}
+
+output "agentic_security_agent_invoke_policy_arn" {
+  description = "ARN of the IAM policy granting bedrock-agentcore:InvokeAgentRuntime/GetAgentCard on the Agentic Security Agent. Attach it to whichever identity you'll test with."
+  value       = module.agentic_security_agent.invoke_policy_arn
+}
