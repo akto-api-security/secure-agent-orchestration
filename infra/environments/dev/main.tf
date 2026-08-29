@@ -10,12 +10,33 @@ locals {
   }
 }
 
+# Phase 4: REQUEST interceptor Lambda, defined before the gateway module
+# below since the gateway needs its ARN (to add an interceptor_configuration
+# block + an IAM permission on its own service role) -- the interceptor
+# itself has no dependency back on the gateway, so this ordering avoids a
+# circular module reference.
+module "gateway_interceptor" {
+  source = "../../modules/gateway-interceptor"
+
+  project_name = var.project_name
+  environment  = var.environment
+  aws_region   = var.aws_region
+  log_level    = var.interceptor_log_level
+
+  tags = merge(local.common_tags, {
+    Phase = "4"
+  })
+}
+
 module "agentcore_gateway" {
   source = "../../modules/agentcore-gateway"
 
   project_name = var.project_name
   environment  = var.environment
   aws_region   = var.aws_region
+
+  enable_interceptor     = true
+  interceptor_lambda_arn = module.gateway_interceptor.lambda_arn
 
   tags = merge(local.common_tags, {
     Phase = "1"

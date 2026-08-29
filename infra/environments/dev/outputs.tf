@@ -87,3 +87,23 @@ output "orchestrator_invoke_policy_arn" {
   description = "ARN of the IAM policy granting bedrock-agentcore:InvokeAgentRuntime on the Orchestrator. Attach it to whichever identity you'll test with."
   value       = module.orchestrator.invoke_policy_arn
 }
+
+output "interceptor_lambda_arn" {
+  description = "ARN of the Phase 4 REQUEST interceptor Lambda attached to the Gateway."
+  value       = module.gateway_interceptor.lambda_arn
+}
+
+output "interceptor_lambda_function_name" {
+  description = "Name of the interceptor Lambda -- use with `aws lambda invoke` / CloudWatch log tailing."
+  value       = module.gateway_interceptor.lambda_function_name
+}
+
+output "interceptor_execution_role_arn" {
+  description = "ARN of the interceptor Lambda's execution role."
+  value       = module.gateway_interceptor.execution_role_arn
+}
+
+output "interceptor_log_group_name" {
+  description = "CloudWatch log group for the interceptor Lambda."
+  value       = module.gateway_interceptor.log_group_name
+}

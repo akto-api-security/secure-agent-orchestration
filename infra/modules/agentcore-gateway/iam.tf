@@ -74,3 +74,27 @@ resource "aws_iam_policy" "invoke_gateway" {
   policy      = data.aws_iam_policy_document.invoke_gateway.json
   tags        = var.tags
 }
+
+# Phase 4: the gateway's own service role must be able to invoke the
+# interceptor Lambda (confirmed AWS requirement -- see "Permissions for
+# interceptors" in docs/phase-context/phase-4-context.md). Identity-based
+# only; no Lambda-side resource policy is added (not documented as required
+# for this same-account, execution-role-mediated invocation, and adding one
+# scoped to the gateway's own ARN would create a circular module
+# dependency -- see phase-4 context doc "IAM" section).
+data "aws_iam_policy_document" "invoke_interceptor" {
+  count = var.enable_interceptor ? 1 : 0
+
+  statement {
+    effect    = "Allow"
+    actions   = ["lambda:InvokeFunction"]
+    resources = [var.interceptor_lambda_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "gateway_invoke_interceptor" {
+  count  = var.enable_interceptor ? 1 : 0
+  name   = "asl-gateway-invoke-interceptor-${var.environment}"
+  role   = aws_iam_role.gateway.id
+  policy = data.aws_iam_policy_document.invoke_interceptor[0].json
+}

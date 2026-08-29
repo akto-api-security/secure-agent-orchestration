@@ -6,6 +6,12 @@ terraform {
       source  = "hashicorp/aws"
       version = ">= 6.51"
     }
+    # Phase 4: packages the interceptor Lambda's deployment zip
+    # (infra/modules/gateway-interceptor/lambda.tf).
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
   }
 
   backend "s3" {

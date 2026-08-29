@@ -37,3 +37,26 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "enable_interceptor" {
+  description = <<-EOT
+    Phase 4: whether to attach a REQUEST interceptor to the gateway. A plain
+    boolean, not inferred from interceptor_lambda_arn being non-null -- the
+    ARN comes from another module and is unknown at plan time on a first
+    apply, and Terraform can't evaluate a `count`/`for_each` based on an
+    unknown value. Keeping this as its own literal keeps the conditional
+    resources' counts resolvable at plan time regardless of whether the
+    interceptor Lambda has been created yet.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "interceptor_lambda_arn" {
+  description = <<-EOT
+    Phase 4: ARN of the REQUEST interceptor Lambda (from the
+    gateway-interceptor module). Only used when enable_interceptor = true.
+  EOT
+  type        = string
+  default     = null
+}
