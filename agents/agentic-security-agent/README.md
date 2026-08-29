@@ -55,8 +55,10 @@ ECR_REPO=$(cd ../../infra/environments/dev && terraform output -raw agentic_secu
 aws ecr get-login-password --region us-east-1 \
   | docker login --username AWS --password-stdin "${ECR_REPO%/*}"
 
-docker buildx build --platform linux/arm64 -t "$ECR_REPO:latest" --push .
+docker buildx build --platform linux/arm64 -t "${ECR_REPO}:latest" --push .
 ```
+
+**zsh users:** brace the variable (`${ECR_REPO}:latest`, not `$ECR_REPO:latest`) -- unbraced, zsh parses the `:l` in `:latest` as its own "lowercase" modifier and drops it, corrupting the tag into `...-devatest`-style garbage instead of `...-dev:latest`. Confirmed while debugging the same pattern in Phase 3's orchestrator build.
 
 Terraform can't create the `aws_bedrockagentcore_agent_runtime` resource
 until an image tagged `:latest` exists in the repo it references -- apply

@@ -65,3 +65,25 @@ module "agentic_security_agent" {
     Phase = "2"
   })
 }
+
+# Phase 3: Orchestrator -- the user-facing entry point. Classifies each
+# question with a deterministic keyword match (router.py) and delegates to
+# one of the two Phase 2 agents above over A2A (bedrock-agentcore
+# invoke_agent_runtime). Never talks to the Gateway directly.
+module "orchestrator" {
+  source = "../../modules/agentcore-orchestrator"
+
+  project_name = var.project_name
+  environment  = var.environment
+  aws_region   = var.aws_region
+
+  agent_runtime_name = "asl_orchestrator_${var.environment}"
+  description        = "Orchestrator Agent -- entry point for user questions; routes to the API Security Agent or Agentic Security Agent over A2A based on a deterministic keyword match."
+
+  api_security_agent_runtime_arn     = module.api_security_agent.agent_runtime_arn
+  agentic_security_agent_runtime_arn = module.agentic_security_agent.agent_runtime_arn
+
+  tags = merge(local.common_tags, {
+    Phase = "3"
+  })
+}

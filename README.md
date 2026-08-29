@@ -50,11 +50,11 @@ DynamoDB; signed grants use AWS KMS.
 
 | Path | Purpose | Status |
 |---|---|---|
-| `infra/` | Terraform: state backend + per-environment stacks | Phase 1 (Gateway) deployed; Phase 2 (delegated agents) built, not yet deployed |
-| `agents/` | Orchestrator, API Security Agent, Agentic Security Agent | API/Agentic Security Agents: Phase 2 code built, not yet deployed. Orchestrator: placeholder (Phase 3) |
-| `gateway/` | AgentCore Gateway config, REQUEST interceptor Lambda, MCP targets | Placeholder |
-| `policy/` | OPA policies | Placeholder |
-| `approval-workflow/` | Approval Agent/workflow, DynamoDB + KMS | Placeholder |
+| `infra/` | Terraform: state backend + per-environment stacks | Phase 1 (Gateway) and Phase 2 (delegated agents) deployed and live-tested; Phase 3 (Orchestrator) built, not yet deployed |
+| `agents/` | Orchestrator, API Security Agent, Agentic Security Agent | API/Agentic Security Agents: deployed and live-tested (Phase 2). Orchestrator: code built (Phase 3), routes between the two agents over A2A, not yet deployed |
+| `gateway/` | AgentCore Gateway config, REQUEST interceptor Lambda, MCP targets | Placeholder (interceptor is Phase 4; the Gateway itself lives in `infra/modules/agentcore-gateway/`, deployed) |
+| `policy/` | OPA policies | Placeholder (Phase 4) |
+| `approval-workflow/` | Approval Agent/workflow, DynamoDB + KMS | Placeholder (Phase 5) |
 | `scripts/` | Local dev/prereq helper scripts | Active |
 
 ## Prerequisites

@@ -67,3 +67,23 @@ output "agentic_security_agent_invoke_policy_arn" {
   description = "ARN of the IAM policy granting bedrock-agentcore:InvokeAgentRuntime/GetAgentCard on the Agentic Security Agent. Attach it to whichever identity you'll test with."
   value       = module.agentic_security_agent.invoke_policy_arn
 }
+
+output "orchestrator_ecr_repository_url" {
+  description = "ECR repository URL to push the Orchestrator's container image to, before first apply of its agent runtime."
+  value       = module.orchestrator.ecr_repository_url
+}
+
+output "orchestrator_runtime_arn" {
+  description = "ARN of the Orchestrator's AgentCore Runtime."
+  value       = module.orchestrator.agent_runtime_arn
+}
+
+output "orchestrator_execution_role_arn" {
+  description = "ARN of the Orchestrator's AgentCore Runtime execution role."
+  value       = module.orchestrator.execution_role_arn
+}
+
+output "orchestrator_invoke_policy_arn" {
+  description = "ARN of the IAM policy granting bedrock-agentcore:InvokeAgentRuntime on the Orchestrator. Attach it to whichever identity you'll test with."
+  value       = module.orchestrator.invoke_policy_arn
+}
