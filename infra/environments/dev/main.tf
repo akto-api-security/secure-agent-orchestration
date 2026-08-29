@@ -1,5 +1,6 @@
-# No resources yet. Populated in later phases (agents, gateway, policy,
-# approval-workflow) via modules under infra/modules/.
+# Phase 1 resources live here via infra/modules/. Later phases (delegated
+# agents, orchestrator, interceptor/OPA, approval-workflow) will add their
+# own module blocks below as they're implemented.
 
 locals {
   common_tags = {
@@ -7,4 +8,16 @@ locals {
     Environment = var.environment
     ManagedBy   = "terraform"
   }
+}
+
+module "agentcore_gateway" {
+  source = "../../modules/agentcore-gateway"
+
+  project_name = var.project_name
+  environment  = var.environment
+  aws_region   = var.aws_region
+
+  tags = merge(local.common_tags, {
+    Phase = "1"
+  })
 }
