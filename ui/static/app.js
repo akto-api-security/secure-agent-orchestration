@@ -1,4 +1,5 @@
 const state = { domain: null, resumeToken: null, referenceId: null, toolName: null };
+const sessionStartMs = Date.now();
 
 const el = (id) => document.getElementById(id);
 const nodes = ["user", "orchestrator", "delegate", "gateway", "interceptor", "approval", "mcp", "result"];
@@ -181,6 +182,10 @@ el("instruct-btn").addEventListener("click", () => {
   const text = el("instruction-text").value.trim();
   if (!text) return;
   submitDecision("instruction", text);
+});
+
+el("logs-btn").addEventListener("click", () => {
+  window.open(`/logs?since=${sessionStartMs}`, "_blank");
 });
 
 checkHealth();

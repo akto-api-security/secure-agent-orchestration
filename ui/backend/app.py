@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import aws_clients
 from .config import settings
+from .logs import fetch_recent_logs
 from .verification import now_ms, verify_tool_execution
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -33,6 +34,11 @@ _STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 @app.get("/")
 def index():
     return FileResponse(os.path.join(_STATIC_DIR, "index.html"))
+
+
+@app.get("/logs")
+def logs_page():
+    return FileResponse(os.path.join(_STATIC_DIR, "logs.html"))
 
 
 app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
@@ -107,3 +113,8 @@ async def decide_route(request: Request):
 def verify(domain: str | None = None, tool_name: str | None = None, start_ms: int = 0, decision: str | None = None):
     verdict = verify_tool_execution(domain, tool_name, start_ms)
     return {"verdict": verdict.verdict, "detail": verdict.detail, "log_lines": verdict.log_lines, "decision": decision}
+
+
+@app.get("/api/logs")
+def logs_route(since_ms: int = 0):
+    return {"logs": fetch_recent_logs(since_ms), "components": list(settings.all_log_groups().keys())}

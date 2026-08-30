@@ -59,6 +59,26 @@ class Settings:
             return None
         return f"/aws/bedrock-agentcore/runtimes/{runtime_id_from_arn(arn)}-DEFAULT"
 
+    def all_log_groups(self) -> dict[str, str]:
+        """Every log group this UI knows how to derive, labeled for display.
+        Orchestrator/Approval Agent/both delegated agents are all plain
+        AgentCore Runtimes, so their log group name follows the same
+        `/aws/bedrock-agentcore/runtimes/<runtime-id>-DEFAULT` pattern; the
+        interceptor is a separate Lambda log group, already exposed as a
+        Terraform output."""
+        groups = {}
+        if self.orchestrator_arn:
+            groups["Orchestrator"] = f"/aws/bedrock-agentcore/runtimes/{runtime_id_from_arn(self.orchestrator_arn)}-DEFAULT"
+        if self.api_agent_arn:
+            groups["Delegated Agent (API Security)"] = self.delegate_log_group("api_security")
+        if self.agentic_agent_arn:
+            groups["Delegated Agent (Agentic Security)"] = self.delegate_log_group("agentic_security")
+        if self.approval_agent_arn:
+            groups["Approval Agent"] = f"/aws/bedrock-agentcore/runtimes/{runtime_id_from_arn(self.approval_agent_arn)}-DEFAULT"
+        if self.interceptor_log_group:
+            groups["Interceptor"] = self.interceptor_log_group
+        return groups
+
     def is_ready(self) -> bool:
         return bool(self.orchestrator_arn and self.approval_agent_arn)
 
