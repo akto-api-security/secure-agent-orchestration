@@ -1,4 +1,4 @@
-.PHONY: check-prereqs bootstrap-init bootstrap-apply dev-init dev-plan build-push verify demo-ui
+.PHONY: check-prereqs bootstrap-init bootstrap-apply dev-init dev-plan build-push verify demo-ui destroy
 
 check-prereqs:
 	bash scripts/check_prereqs.sh
@@ -26,3 +26,6 @@ verify:
 
 demo-ui:
 	bash scripts/start-demo.sh
+
+destroy:
+	bash scripts/destroy.sh

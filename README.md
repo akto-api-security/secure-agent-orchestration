@@ -251,30 +251,54 @@ MCP tool call actually happened.
 
 ## Tearing it down
 
+### Tear down the deployed stack
+
 ```bash
-cd infra/environments/dev
+scripts/destroy.sh
+```
+
+None of the 4 ECR repositories have `force_delete` enabled, so a plain
+`terraform destroy` would fail on any of them that still hold images --
+this script clears each one first (using the real repo names from
+`terraform output`, not a guess, so it works regardless of your
+`project_name`/`environment`), then runs `terraform destroy` for
+everything else: both AgentCore Runtimes, the Gateway, the interceptor
+Lambda, the DynamoDB table, IAM roles/policies, and the KMS key. It asks
+for confirmation before touching anything.
+
+**The KMS key won't disappear immediately.** It's created with
+`deletion_window_in_days = 7` (AWS never allows immediate KMS key
+deletion), so after this runs it moves to "Pending deletion" for 7 days,
+not gone outright -- expected, not a stuck destroy (the script says so at
+the end too).
+
+This leaves the Terraform state backend (the S3 bucket from Step 4) and
+your local `infra/environments/dev/backend.hcl` untouched, so re-running
+Steps 5-11 afterward (skipping Step 4 -- the bucket already exists) is all
+you need to redeploy fresh.
+
+### Also remove the state backend (optional, only for a fully clean account)
+
+Only do this *after* the `terraform destroy` above has fully completed --
+that bucket holds `infra/environments/dev`'s own state, so removing it
+first would strand that destroy. The bucket has versioning enabled and no
+`force_destroy`, so it must be fully emptied (every version and delete
+marker, not just current objects) before Terraform can delete it:
+
+```bash
+cd infra/bootstrap
+BUCKET="$(terraform output -raw state_bucket_name)"
+
+aws s3api list-object-versions --bucket "$BUCKET" --output json \
+  --query '{Objects: Versions[].{Key:Key,VersionId:VersionId}}' > /tmp/versions.json
+aws s3api delete-objects --bucket "$BUCKET" --delete file:///tmp/versions.json
+
+aws s3api list-object-versions --bucket "$BUCKET" --output json \
+  --query '{Objects: DeleteMarkers[].{Key:Key,VersionId:VersionId}}' > /tmp/markers.json
+aws s3api delete-objects --bucket "$BUCKET" --delete file:///tmp/markers.json
+
 terraform destroy
 ```
 
-One known gotcha: the ECR repositories don't have `force_delete` enabled, so
-`destroy` will fail on any repository that still contains images. Either
-delete the images first (`aws ecr batch-delete-image` / `aws ecr
-delete-repository --force`) or re-run `destroy` after clearing them. This
-does not delete the Terraform state bucket from Step 4 -- remove that
-separately (`infra/bootstrap`) if you want a fully clean account.
-
-## Internal-only files
-
-If you're working from a full development checkout of this project (rather
-than a plain `git clone`), you may also see a `docs/` directory and a
-handful of extra scripts under `scripts/` (`test_approval_flow.sh`,
-`test_hitl_flow.sh`, `test_sendfeedback_block.sh`, `approval_decide.py`).
-Both are gitignored on purpose -- `docs/` holds internal design notes not
-meant for client sharing, and those scripts hardcode a specific
-deployment's own resource IDs for quick local debugging. Neither is part of
-a fresh clone, and neither is required by the steps above.
-
-`scripts/demo_interactive.sh`, by contrast, **is** tracked and part of the
-supported path -- an interactive CLI driver for the same demo flows the UI
-covers, handy when you want a scripted/terminal-only walkthrough instead of
-the browser UI. See its own header comment for usage.
+After this, `infra/environments/dev/backend.hcl` points at a bucket that no
+longer exists -- delete that file too before running Step 4 again.
