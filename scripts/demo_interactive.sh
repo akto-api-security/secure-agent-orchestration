@@ -96,6 +96,50 @@ try_logs() {
   fi
 }
 
+# The core "no black box" check: after a decision + resume, did the actual
+# MCP tool call happen or not? Reads the delegated agent's own log
+# (gateway_tool.py logs "Tool call succeeded: tool=<namespaced_tool_name>, N
+# chars returned" only on a real, executed Gateway/MCP call -- never on a
+# denied/cancelled one) rather than trusting the agent's own prose answer.
+verify_tool_execution() {
+  local tool_name="$1" start_ms="$2" decision="$3"
+  if [ -z "${DELEGATE_LOG_GROUP:-}" ] || [ -z "$tool_name" ]; then
+    echo "(skipping enforcement verification -- tool name or delegate log group unavailable)"
+    return
+  fi
+  step "Verifying enforcement: did $tool_name actually execute?"
+  echo "(waiting 8s for CloudWatch Logs to ingest...)"
+  sleep 8
+  local out
+  if ! out=$(aws logs filter-log-events --region "$REGION" --log-group-name "$DELEGATE_LOG_GROUP" \
+        --start-time "$start_ms" --filter-pattern "\"Tool call succeeded\" \"$tool_name\"" \
+        --query "events[].message" --output text 2>"$WORKDIR/logs_err"); then
+    echo "(couldn't verify -- likely missing logs:FilterLogEvents; skipping)" >&2
+    head -1 "$WORKDIR/logs_err" >&2 || true
+    return
+  fi
+
+  if [ -n "$out" ]; then
+    echo "$out"
+    case "$decision" in
+      approve) bold "CONFIRMED: $tool_name actually executed after approval." ;;
+      deny) bold "WARNING: $tool_name executed even though the decision was DENY -- this should NEVER happen. Investigate immediately." ;;
+      instruct)
+        echo "Note: a success log exists for this tool name after an instruction was given. This is only"
+        echo "expected if the agent retried with NEW, independently-evaluated arguments (a fresh decision,"
+        echo "not the original denied request bypassing enforcement) -- compare the arguments above against"
+        echo "the original request shown earlier in this run if you want to confirm which case this is."
+        ;;
+    esac
+  else
+    case "$decision" in
+      approve) bold "WARNING: expected $tool_name to execute after approval, but no success log found yet (logs may still be propagating -- rerun the check manually if unsure)." ;;
+      deny) bold "CONFIRMED: $tool_name did NOT execute (no success log found) -- enforcement held." ;;
+      instruct) bold "CONFIRMED: $tool_name did NOT execute -- the instruction was not treated as approval, as expected." ;;
+    esac
+  fi
+}
+
 delegate_log_group() {
   case "$1" in
     api_security)
@@ -170,6 +214,7 @@ while true; do
       KIND_LABEL="deterministic approval"
       [ "$STATUS" = "hitl_required" ] && KIND_LABEL="human-in-the-loop (semantic)"
       REFERENCE_ID=$(json_get "$WORKDIR/response.json" resume_token.reference_id)
+      TOOL_NAME=$(json_get "$WORKDIR/response.json" tool_name)
 
       step "Human decision required -- $KIND_LABEL (round $ROUND)"
       echo "Reference: $REFERENCE_ID"
@@ -223,6 +268,7 @@ json.dump(payload, open('$WORKDIR/decide.json', 'w'))
       fi
 
       step "Resuming the paused workflow"
+      RESUME_START_MS=$(( $(date +%s) * 1000 ))
       python3 -c "
 import json
 d = json.load(open('$WORKDIR/response.json'))
@@ -233,6 +279,8 @@ json.dump({'resume_token': d['resume_token']}, open('$WORKDIR/resume.json', 'w')
         --payload "fileb://$WORKDIR/resume.json" --region "$REGION" \
         "$WORKDIR/response.json" >/dev/null
       python3 -m json.tool < "$WORKDIR/response.json"
+
+      verify_tool_execution "$TOOL_NAME" "$RESUME_START_MS" "$DECISION"
       ;;
     *)
       echo "Unexpected status: $STATUS" >&2
