@@ -114,6 +114,19 @@ These steps take you from a fresh clone to a fully deployed stack with a
 working demo. Every command below is safe to run from the repository root
 unless noted otherwise.
 
+Steps 6-10 (init, create the ECR repos, build+push images, deploy
+everything else, verify) can also be run in one go once Steps 1-5 are
+done:
+
+```bash
+scripts/deploy.sh <version>   # e.g. scripts/deploy.sh v0.1.0 (omit to default to the current git short SHA)
+```
+
+It's the same commands chained together -- each `terraform apply` still
+shows its own plan and asks for its own confirmation, nothing is
+auto-approved. The step-by-step version below is there for understanding
+what's actually happening, or for troubleshooting a specific step.
+
 ### Step 1 -- Clone the repository
 
 ```bash
