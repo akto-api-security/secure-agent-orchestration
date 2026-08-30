@@ -1,0 +1,18 @@
+# Copy to terraform.tfvars (gitignored, see .gitignore's *.tfvars.local --
+# rename this one or pass -var-file explicitly) and fill in for your own
+# AWS account/deployment. Every value below has a sensible default already
+# baked into variables.tf -- only override what you actually need to change.
+
+# aws_region   = "us-east-1"
+# project_name = "agent-security-lab"
+# environment  = "dev"
+
+# Phase 6: pin every service's image to an explicit, immutable version --
+# never "latest" for a customer deployment. scripts/build-and-push.sh
+# prints the exact value to use here after it builds/pushes your images.
+# image_tag = "abc1234"
+
+# Phase 4: set to "DEBUG" only for the first live test against a fresh
+# Gateway, to confirm the interceptor's assumed event shape -- drop back to
+# "INFO" afterward.
+# interceptor_log_level = "INFO"

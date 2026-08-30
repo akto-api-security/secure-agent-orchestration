@@ -1,0 +1,12 @@
+# Copy to backend.hcl (gitignored) and fill in, or let scripts/bootstrap.sh
+# generate it for you from infra/bootstrap's `state_bucket_name` output.
+#
+# Usage:
+#   terraform init -backend-config=backend.hcl
+#
+# If you're re-pointing an *existing* dev environment at the same bucket
+# (no bucket/key change, just adding -backend-config), add -reconfigure:
+#   terraform init -reconfigure -backend-config=backend.hcl
+
+bucket = "agent-security-lab-tfstate-<ACCOUNT_ID>"
+region = "us-east-1"

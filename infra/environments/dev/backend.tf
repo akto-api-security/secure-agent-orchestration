@@ -14,12 +14,17 @@ terraform {
     }
   }
 
+  # Phase 6: partial backend configuration. Terraform backend blocks can
+  # never reference variables, so "bucket"/"region" -- both account/
+  # deployment-specific -- are supplied at `terraform init` time via
+  # `-backend-config=backend.hcl` instead of being literal here (the one
+  # hardcoded account ID this repo had -- see docs/portability-notes.md).
+  # See backend.hcl.example for the file to copy and fill in; the real
+  # backend.hcl is gitignored (account-specific, generated locally from
+  # infra/bootstrap's `state_bucket_name` output -- scripts/bootstrap.sh
+  # does this for you).
   backend "s3" {
-    # Bucket name must match the "state_bucket_name" output from
-    # infra/bootstrap (agent-security-lab-tfstate-<account_id>).
-    bucket       = "agent-security-lab-tfstate-000000000000"
     key          = "dev/terraform.tfstate"
-    region       = "us-east-1"
     use_lockfile = true
   }
 }

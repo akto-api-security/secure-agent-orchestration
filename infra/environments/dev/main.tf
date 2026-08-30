@@ -26,6 +26,8 @@ module "approval_agent" {
   agent_runtime_name = "asl_approval_agent_${var.environment}"
   description        = "Approval Agent -- owns deterministic approval and semantic HITL decisions, human decision state, and signed authorization grants for the Phase 4 interceptor."
 
+  container_image_tag = var.image_tag
+
   tags = merge(local.common_tags, {
     Phase = "5"
   })
@@ -87,6 +89,8 @@ module "api_security_agent" {
   gateway_url       = module.agentcore_gateway.gateway_url
   mcp_target_prefix = "mac-akto-api-mcp"
 
+  container_image_tag = var.image_tag
+
   tags = merge(local.common_tags, {
     Phase = "2"
   })
@@ -106,6 +110,8 @@ module "agentic_security_agent" {
   gateway_arn       = module.agentcore_gateway.gateway_arn
   gateway_url       = module.agentcore_gateway.gateway_url
   mcp_target_prefix = "mac-akto-ai-mcp"
+
+  container_image_tag = var.image_tag
 
   tags = merge(local.common_tags, {
     Phase = "2"
@@ -131,6 +137,8 @@ module "orchestrator" {
   # Phase 5: resumes a paused delegated-agent task by checking what a human
   # decided (read-only get_decision calls -- see approval_client.py).
   approval_agent_runtime_arn = module.approval_agent.agent_runtime_arn
+
+  container_image_tag = var.image_tag
 
   tags = merge(local.common_tags, {
     Phase = "3"

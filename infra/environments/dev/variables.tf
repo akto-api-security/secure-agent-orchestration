@@ -16,6 +16,21 @@ variable "environment" {
   default     = "dev"
 }
 
+variable "image_tag" {
+  description = <<-EOT
+    Phase 6: immutable tag applied to all 4 service images (orchestrator,
+    API Security Agent, Agentic Security Agent, Approval Agent) --
+    scripts/build-and-push.sh tags/pushes every image with this same
+    value (defaults to a git short SHA there, never "latest"). Defaults to
+    "latest" here only so this variable's addition doesn't change the
+    already-deployed dev stack's behavior until deliberately overridden --
+    a customer deployment should always pass an explicit version, e.g.
+    `terraform apply -var="image_tag=abc1234"`.
+  EOT
+  type        = string
+  default     = "latest"
+}
+
 variable "interceptor_log_level" {
   description = <<-EOT
     Phase 4: interceptor Lambda LOG_LEVEL. Set to "DEBUG" for the first
