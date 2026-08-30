@@ -160,6 +160,22 @@ data "aws_iam_policy_document" "execution" {
       "${var.agentic_security_agent_runtime_arn}/runtime-endpoint/*",
     ]
   }
+
+  # Phase 5: read-only from the orchestrator's perspective -- its own code
+  # (approval_client.py) only ever sends action=get_decision, never
+  # decide/authorize. Terraform/IAM can't distinguish payload-level actions
+  # on the same InvokeAgentRuntime call, so this is enforced by this
+  # project's own code, not by IAM alone (see docs/phase-context/phase-5-context.md,
+  # "IAM").
+  statement {
+    sid     = "InvokeApprovalAgent"
+    effect  = "Allow"
+    actions = ["bedrock-agentcore:InvokeAgentRuntime"]
+    resources = [
+      var.approval_agent_runtime_arn,
+      "${var.approval_agent_runtime_arn}/runtime-endpoint/*",
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "execution" {

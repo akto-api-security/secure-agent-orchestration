@@ -15,6 +15,18 @@ docs/phase-context/phase-4-1-context.md for why that restriction existed and
 why it was removed). Target isolation is maintained by only keeping tools
 namespaced under TARGET_PREFIX; this agent structurally cannot see or call
 the other MCP target's tools.
+
+Phase 5: the interceptor may now return APPROVAL_REQUIRED/HITL_REQUIRED
+(error codes -32010/-32011) instead of a plain ALLOW/BLOCK, when the
+Approval Agent decides a human must authorize or review a tool call. This
+module surfaces that as a structured marker in the tool result (see
+_ASL_MARKER_KEY) and GatewayApprovalHook converts it into a real Strands
+interrupt -- pausing the agent's turn (surfaced by the A2A layer as task
+state `input_required`, a real A2A/Strands capability, not a workaround --
+see docs/phase-context/phase-5-context.md, "HITL resume mechanism") until a
+human decision resumes it. This module and the LLM itself never decide who
+needs approval -- that decision is made entirely by the interceptor +
+Approval Agent; this file only reacts to it mechanically.
 """
 
 import asyncio
@@ -30,6 +42,7 @@ import requests
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from mcp.types import Tool as MCPTool
+from strands.hooks import AfterToolCallEvent, BeforeToolCallEvent, HookProvider, HookRegistry
 from strands.tools.mcp import MCPAgentTool
 
 logger = logging.getLogger(__name__)
@@ -37,6 +50,19 @@ logger = logging.getLogger(__name__)
 GATEWAY_URL = os.environ["GATEWAY_URL"]
 GATEWAY_REGION = os.environ.get("GATEWAY_REGION") or boto3.Session().region_name or "us-east-1"
 TARGET_PREFIX = os.environ.get("MCP_TARGET_PREFIX", "mac-akto-ai-mcp")
+
+# Interceptor error codes for a pending human decision (see
+# interceptor/handler.py's _DECISION_CODES). -32001 (BLOCK) and -32000
+# (fail-closed) are unchanged from Phase 4 and are NOT treated as markers --
+# they're terminal errors, not something to pause and resume.
+_PENDING_DECISION_CODES = {-32010: "APPROVAL_REQUIRED", -32011: "HITL_REQUIRED"}
+_ASL_MARKER_KEY = "asl_decision"
+
+# Reserved argument key the interceptor recognizes on a retried tools/call
+# (see interceptor/handler.py GRANT_ARG_KEY) -- stripped before the real MCP
+# target ever sees it.
+_GRANT_ARG_KEY = "_asl_grant"
+_INTERRUPT_NAME = "gateway_authorization"
 
 _request_ids = itertools.count(1)
 _discovered_tools: list[MCPAgentTool] | None = None
@@ -103,7 +129,24 @@ class _GatewayToolClient:
             }
 
         if "error" in result:
-            message = result["error"].get("message", result["error"])
+            error = result["error"]
+            code = error.get("code")
+            if code in _PENDING_DECISION_CODES:
+                data = error.get("data") or {}
+                marker = {
+                    _ASL_MARKER_KEY: _PENDING_DECISION_CODES[code],
+                    "reference_id": data.get("reference_id"),
+                    "human_question": data.get("human_question", ""),
+                    "tool_name": self._namespaced_tool_name,
+                    "arguments": arguments or {},
+                }
+                logger.info(
+                    "Gateway/MCP returned %s for tool=%s: reference_id=%s",
+                    _PENDING_DECISION_CODES[code], self._namespaced_tool_name, marker["reference_id"],
+                )
+                return {"toolUseId": tool_use_id, "status": "error", "content": [{"text": json.dumps(marker)}]}
+
+            message = error.get("message", error)
             logger.info("Gateway/MCP returned an error for tool=%s: %s", self._namespaced_tool_name, message)
             return {"toolUseId": tool_use_id, "status": "error", "content": [{"text": str(message)}]}
 
@@ -112,6 +155,105 @@ class _GatewayToolClient:
         text = "\n\n".join(text_parts) if text_parts else json.dumps(result.get("result", result))
         logger.info("Tool call succeeded: tool=%s, %d chars returned", self._namespaced_tool_name, len(text))
         return {"toolUseId": tool_use_id, "status": "success", "content": [{"text": text}]}
+
+
+class GatewayApprovalHook(HookProvider):
+    """Converts an interceptor APPROVAL_REQUIRED/HITL_REQUIRED marker into a
+    real Strands interrupt, and a human's resumed decision back into either
+    a grant-bearing retry, a cancellation, or a surfaced instruction.
+
+    This hook owns none of the approval/HITL business logic -- it never
+    decides whether a tool call needs a human, only reacts to the
+    interceptor + Approval Agent's own decision (see
+    docs/phase-context/phase-5-context.md, "Locked responsibility model").
+    State is per-Agent (one GatewayApprovalHook instance per A2A context_id,
+    since build_agent() constructs a fresh Agent+hook per context), so
+    concurrent conversations never share pending-marker state.
+
+    Mechanics (see phase-5-context.md "HITL resume mechanism" for the full
+    reasoning against the installed Strands SDK's real interrupt support):
+      1. A tool call comes back with an asl_decision marker (AfterToolCallEvent) ->
+         stash it, set retry=True (discard this result, re-invoke the same
+         tool_use once more -- no second real Gateway call happens yet).
+      2. The retry's BeforeToolCallEvent sees the stashed marker -> calls
+         event.interrupt(), which raises and pauses the whole agent turn
+         (StrandsA2AExecutor maps this to A2A task state input_required).
+         No tool dispatch happens on this pass either.
+      3. When a human's decision resumes the task, the SAME
+         BeforeToolCallEvent callback runs again; event.interrupt() this
+         time returns the decision instead of raising:
+           - deny -> event.cancel_tool = ... (tool never actually dispatches)
+           - instruction -> event.cancel_tool = ... (instruction text becomes
+             the tool's result content, so the running LLM sees it in the
+             same continued turn and can choose to retry with adjusted
+             arguments -- a fresh tool_use, evaluated fresh)
+           - approve -> event.tool_use is mutated to attach the signed grant,
+             and the tool call proceeds normally: exactly one real Gateway
+             dispatch happens (the retry, now carrying the grant) -- the
+             original attempt never reached MCP, so nothing executes twice.
+    """
+
+    def __init__(self) -> None:
+        self._pending: dict[str, dict] = {}
+
+    def register_hooks(self, registry: HookRegistry, **kwargs: Any) -> None:
+        registry.add_callback(AfterToolCallEvent, self._after_tool_call)
+        registry.add_callback(BeforeToolCallEvent, self._before_tool_call)
+
+    def _after_tool_call(self, event: AfterToolCallEvent) -> None:
+        result = event.result
+        if not isinstance(result, dict) or result.get("status") != "error":
+            return
+        content = result.get("content") or []
+        if not content or "text" not in content[0]:
+            return
+        try:
+            marker = json.loads(content[0]["text"])
+        except (json.JSONDecodeError, TypeError):
+            return
+        if not isinstance(marker, dict) or _ASL_MARKER_KEY not in marker:
+            return
+
+        tool_use_id = event.tool_use["toolUseId"]
+        self._pending[tool_use_id] = marker
+        logger.info(
+            "Pausing for human decision: tool_use_id=%s decision=%s reference_id=%s",
+            tool_use_id, marker[_ASL_MARKER_KEY], marker.get("reference_id"),
+        )
+        event.retry = True
+
+    def _before_tool_call(self, event: BeforeToolCallEvent) -> None:
+        tool_use_id = event.tool_use["toolUseId"]
+        marker = self._pending.get(tool_use_id)
+        if marker is None:
+            return  # nothing pending for this tool call -- dispatch normally
+
+        response = event.interrupt(_INTERRUPT_NAME, reason=marker)
+        # Only reached on resume -- the first call above raises InterruptException.
+        del self._pending[tool_use_id]
+
+        decision = response.get("decision") if isinstance(response, dict) else None
+        if decision == "deny":
+            event.cancel_tool = response.get("message") or "Denied by human reviewer."
+        elif decision == "instruction":
+            instruction_text = response.get("instruction_text", "")
+            event.cancel_tool = (
+                f"A human reviewed this and did not approve automatic execution. "
+                f"Human guidance: {instruction_text!r}. Incorporate this guidance "
+                f"before deciding whether and how to proceed."
+            )
+        elif decision == "approve":
+            grant = response.get("grant")
+            if not grant:
+                event.cancel_tool = "Approval was reported but no grant was provided -- treating as denied."
+            else:
+                new_input = dict(event.tool_use.get("input") or {})
+                new_input[_GRANT_ARG_KEY] = grant
+                event.tool_use = {**event.tool_use, "input": new_input}
+                # No cancel_tool set -- the tool dispatches normally now,
+                # this time carrying the grant for the interceptor to verify.
+        else:
+            event.cancel_tool = f"Unrecognized human decision {decision!r} -- treating as denied."
 
 
 def discover_gateway_tools() -> list[MCPAgentTool]:

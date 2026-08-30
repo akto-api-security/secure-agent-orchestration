@@ -31,8 +31,14 @@ venv/
 
 # Internal-only test scripts (invoke real AWS resources, not for client sharing)
 /scripts/test_sendfeedback_block.sh
+/scripts/test_approval_flow.sh
+/scripts/test_hitl_flow.sh
+/scripts/approval_decide.py
 
 # OS / editor
 .DS_Store
 .idea/
 .vscode/
+
+# Claude Code harness working files (not project content)
+.claude/

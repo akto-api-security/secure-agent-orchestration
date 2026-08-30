@@ -1,12 +1,16 @@
-# Gateway Interceptor (Phase 4)
+# Gateway Interceptor (Phase 4 + Phase 5)
 
 A REQUEST interceptor Lambda for the Phase 1 AgentCore Gateway
-(`asl-gateway-dev-xxxxxxxxxx`), enforcing an OPA/Rego policy before an MCP
-tool call reaches either MCP target. See
+(`asl-gateway-dev-xxxxxxxxxx`). Phase 4 gave it an OPA/Rego baseline policy;
+Phase 5 adds routing every OPA-allowed `tools/call` to the Approval Agent
+(`../approval-agent/`) for the actual authorization decision -- this
+Lambda owns none of that decision logic itself (see
+[../docs/phase-context/phase-5-context.md](../docs/phase-context/phase-5-context.md),
+"Locked responsibility model"). See
 [../docs/phase-context/phase-4-context.md](../docs/phase-context/phase-4-context.md)
-for the full confirmed-vs-inferred AWS research this design is based on, and
-[../docs/architecture.md](../docs/architecture.md) ("Phase 4 implementation")
-for the Terraform/IAM wiring.
+for the original AWS research this design is based on, and
+[../docs/architecture.md](../docs/architecture.md) ("Phase 4/5
+implementation") for the Terraform/IAM wiring.
 
 ```
 Gateway (REQUEST interceptor, gateway-wide -- covers both MCP targets)
@@ -17,11 +21,18 @@ handler.py -- parse MCP interceptor event -> normalized OPA input
    v
 subprocess: bin/opa eval --data policies/main.rego --stdin-input data.gateway.authz
    |
-   v
-{"allow": true|false, "block_reason": "..."}
-   |
-   +-- allow  -> transformedGatewayRequest (unmodified body)  -> MCP target runs
-   +-- block  -> transformedGatewayResponse (JSON-RPC error)  -> MCP target never runs
+   +-- deny (fail-closed only, see below)  -> BLOCK, Approval Agent never consulted
+   +-- allow, method != tools/call          -> ALLOW directly (tools/list, initialize)
+   +-- allow, method == tools/call          -> ask the Approval Agent
+                                                  |
+                                                  v
+                                    {"decision": "ALLOW|BLOCK|APPROVAL_REQUIRED|HITL_REQUIRED", ...}
+                                                  |
+   +-- ALLOW              -> transformedGatewayRequest (grant stripped) -> MCP target runs
+   +-- BLOCK               -> transformedGatewayResponse (JSON-RPC error) -> MCP target never runs
+   +-- APPROVAL_REQUIRED /
+       HITL_REQUIRED       -> transformedGatewayResponse (JSON-RPC error, reference_id +
+                              human_question) -> MCP target never runs (yet)
 ```
 
 ## Why OPA as a subprocess, not a library
@@ -101,21 +112,29 @@ status, matching how the Gateway itself reports MCP-level errors):
                       "data": {"reason": "...", "correlation_id": "..."}}}}}}
 ```
 
-`error.code -32001` = policy block; `-32000` = interceptor internal error
-(fail-closed path, see below).
+`error.code -32001` = policy/Approval-Agent block; `-32000` = interceptor
+internal error (fail-closed path, see below). Phase 5 adds two more,
+non-terminal codes for a pending human decision: `-32010` =
+`APPROVAL_REQUIRED`, `-32011` = `HITL_REQUIRED` -- same envelope shape,
+`error.data` additionally carries `reference_id` and `human_question`.
+Retrying with a grant: the caller adds a reserved argument key,
+`_asl_grant`, to `params.arguments` -- the interceptor strips it before
+ever forwarding `transformedGatewayRequest`, so the real MCP target never
+sees it.
 
 ## Policies
 
-- **Policy 1 (ALLOW):** everything not matched by Policy 2 -- `tools/list`,
-  `initialize`, and `tools/call` against `searchDocumentation` or `getPage`
-  on either Phase 1 MCP target.
-- **Policy 2 (BLOCK):** any `tools/call` whose underlying tool name is
-  `sendFeedback` (with either target prefix stripped). This is deterministic
-  and demonstrable without inventing an artificial test flag: Phase 1's own
-  `tools/list` probe found `sendFeedback` is the one write-capable tool on
-  either MCP target (`searchDocumentation`/`getPage` are both
-  `readOnlyHint: true`) -- the policy is "no write operations through this
-  gateway."
+**Phase 5 change: OPA is now only the baseline layer.** `main.rego` is
+`default allow := true` and nothing else -- Phase 4's Policy 2 (block
+`sendFeedback`) was removed, since that business rule now belongs entirely
+to the Approval Agent's deterministic ruleset
+(`../approval-agent/deterministic.py`), per the Phase 5 brief's explicit
+requirement that this Lambda not own approval business logic. See
+`../docs/phase-context/phase-5-context.md` ("OPA / Test 2 rescoping") for
+the reasoning and the resulting tension with Phase 4's original BLOCK test.
+OPA still runs on every request and is still fail-closed (below) -- a
+future *purely mechanical* Rego-level rule would still belong here, not in
+the Approval Agent.
 
 ## Fail-closed error handling
 
@@ -152,16 +171,28 @@ bin/opa-local test policies/ -v                     # Rego unit tests (policy on
 OPA_BIN_PATH=bin/opa-local python3 -m pytest tests/ -v   # handler.py -> real opa subprocess
 ```
 
-Both suites are the actual ALLOW/BLOCK evidence for Phase 4's two required
-end-to-end tests, run against the real OPA engine and the real handler code
-path -- not mocked policy decisions.
+Both suites are real evidence of the interceptor's OPA-baseline and
+fail-closed behavior, run against the real OPA engine and the real handler
+code path. Phase 5's `_call_approval_agent` is monkeypatched in these unit
+tests (it's a real AgentCore Runtime invocation over the network in
+production) -- `../approval-agent/tests/` covers that service's own logic.
 
 ## Manual end-to-end test against the deployed Lambda (before wiring to the Gateway)
+
+Requires `APPROVAL_AGENT_RUNTIME_ARN` to already be set on the deployed
+Lambda (Phase 5) -- a `searchDocumentation` call now goes through to the
+real Approval Agent, not just OPA:
 
 ```bash
 aws lambda invoke --function-name asl-interceptor-dev \
   --cli-binary-format raw-in-base64-out \
+  --payload '{"interceptorInputVersion":"1.0","mcp":{"gatewayRequest":{"body":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"mac-akto-api-mcp___searchDocumentation","arguments":{"query":"OWASP API security"}}}}}}' \
+  /tmp/interceptor-response.json
+jq . /tmp/interceptor-response.json   # expect a transformedGatewayRequest (ALLOW)
+
+aws lambda invoke --function-name asl-interceptor-dev \
+  --cli-binary-format raw-in-base64-out \
   --payload '{"interceptorInputVersion":"1.0","mcp":{"gatewayRequest":{"body":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"mac-akto-api-mcp___sendFeedback","arguments":{}}}}}}' \
   /tmp/interceptor-response.json
-jq . /tmp/interceptor-response.json   # expect a transformedGatewayResponse with error.code -32001
+jq . /tmp/interceptor-response.json   # expect a transformedGatewayResponse with error.code -32010 (APPROVAL_REQUIRED)
 ```

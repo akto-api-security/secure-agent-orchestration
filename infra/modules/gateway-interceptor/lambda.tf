@@ -36,12 +36,14 @@ resource "aws_lambda_function" "interceptor" {
   handler       = "handler.handler"
   runtime       = "python3.13"
   architectures = ["arm64"]
-  timeout       = 10
+  timeout       = var.lambda_timeout_seconds
   memory_size   = 256
 
   environment {
     variables = {
-      LOG_LEVEL = var.log_level
+      LOG_LEVEL                  = var.log_level
+      APPROVAL_AGENT_RUNTIME_ARN = var.approval_agent_runtime_arn
+      AGENT_REGION               = var.aws_region
     }
   }
 

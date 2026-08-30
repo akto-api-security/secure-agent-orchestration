@@ -107,3 +107,33 @@ output "interceptor_log_group_name" {
   description = "CloudWatch log group for the interceptor Lambda."
   value       = module.gateway_interceptor.log_group_name
 }
+
+output "approval_agent_ecr_repository_url" {
+  description = "ECR repository URL to push the Approval Agent's container image to, before first apply of its agent runtime."
+  value       = module.approval_agent.ecr_repository_url
+}
+
+output "approval_agent_runtime_arn" {
+  description = "ARN of the Approval Agent's AgentCore Runtime."
+  value       = module.approval_agent.agent_runtime_arn
+}
+
+output "approval_agent_execution_role_arn" {
+  description = "ARN of the Approval Agent's AgentCore Runtime execution role."
+  value       = module.approval_agent.execution_role_arn
+}
+
+output "approval_agent_invoke_policy_arn" {
+  description = "ARN of the IAM policy granting bedrock-agentcore:InvokeAgentRuntime on the Approval Agent. Attach it to whichever identity you'll test with (e.g. the human-decision CLI)."
+  value       = module.approval_agent.invoke_policy_arn
+}
+
+output "approval_state_table_name" {
+  description = "Name of the DynamoDB table holding approval/HITL workflow state."
+  value       = module.approval_agent.state_table_name
+}
+
+output "grant_kms_key_arn" {
+  description = "ARN of the KMS key used to sign/verify authorization grants."
+  value       = module.approval_agent.grant_kms_key_arn
+}

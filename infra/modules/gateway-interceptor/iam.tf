@@ -39,3 +39,29 @@ resource "aws_iam_role_policy" "interceptor_logs" {
   role   = aws_iam_role.interceptor.id
   policy = data.aws_iam_policy_document.interceptor_logs.json
 }
+
+# Phase 5: the interceptor's only new permission -- it calls the Approval
+# Agent for every OPA-allowed tools/call, but still holds no DynamoDB/KMS
+# access itself (that stays entirely inside the Approval Agent's own
+# execution role -- see docs/phase-context/phase-5-context.md, "IAM"). Both
+# ARN forms are granted, matching the pattern already confirmed necessary
+# for bedrock-agentcore:InvokeAgentRuntime elsewhere in this project (Phase
+# 3's orchestrator module).
+data "aws_iam_policy_document" "invoke_approval_agent" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "bedrock-agentcore:InvokeAgentRuntime",
+    ]
+    resources = [
+      var.approval_agent_runtime_arn,
+      "${var.approval_agent_runtime_arn}/runtime-endpoint/*",
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "interceptor_invoke_approval_agent" {
+  name   = "asl-interceptor-invoke-approval-agent-${var.environment}"
+  role   = aws_iam_role.interceptor.id
+  policy = data.aws_iam_policy_document.invoke_approval_agent.json
+}

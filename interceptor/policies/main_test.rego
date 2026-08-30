@@ -25,8 +25,13 @@ test_allow_get_page if {
 	}
 }
 
-test_block_send_feedback_api_target if {
-	not authz.allow with input as {
+# Phase 5: sendFeedback is no longer blocked by OPA -- that decision moved to
+# the Approval Agent's deterministic ruleset (APPROVAL_REQUIRED, not BLOCK).
+# OPA's job now is only to default-allow past this baseline layer so the
+# interceptor can hand the request to the Approval Agent for the real
+# decision. See main.rego's comment and docs/phase-context/phase-5-context.md.
+test_allow_send_feedback_api_target if {
+	authz.allow with input as {
 		"method": "tools/call",
 		"tool_name": "mac-akto-api-mcp___sendFeedback",
 		"bare_tool_name": "sendFeedback",
@@ -34,8 +39,8 @@ test_block_send_feedback_api_target if {
 	}
 }
 
-test_block_send_feedback_ai_target if {
-	not authz.allow with input as {
+test_allow_send_feedback_ai_target if {
+	authz.allow with input as {
 		"method": "tools/call",
 		"tool_name": "mac-akto-ai-mcp___sendFeedback",
 		"bare_tool_name": "sendFeedback",
@@ -43,8 +48,8 @@ test_block_send_feedback_ai_target if {
 	}
 }
 
-test_block_reason_set_when_blocked if {
-	authz.block_reason != "" with input as {
+test_block_reason_empty_when_allowed if {
+	authz.block_reason == "" with input as {
 		"method": "tools/call",
 		"tool_name": "mac-akto-api-mcp___sendFeedback",
 		"bare_tool_name": "sendFeedback",

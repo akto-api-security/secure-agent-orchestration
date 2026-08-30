@@ -2,22 +2,28 @@ package gateway.authz
 
 import rego.v1
 
-# Policy 1 (ALLOW) -- everything defaults to allowed: tools/list, initialize,
-# and tools/call against any read-only tool (searchDocumentation, getPage on
-# either Phase 1 MCP target).
+# Phase 5: this policy is now only the *baseline* layer -- default-allow for
+# everything (tools/list, initialize, and every tools/call), with the
+# interceptor failing closed independently of OPA on any malformed event or
+# OPA evaluation error (see handler.py). It is evaluated first, before the
+# interceptor ever calls the Approval Agent.
+#
+# The Phase 4 rule that lived here (block any tools/call whose tool is
+# sendFeedback) has been REMOVED, not weakened silently: per the Phase 5
+# brief, "the interceptor does NOT own approval business logic" and "does
+# NOT contain the sendFeedback approval rule." That rule now lives entirely
+# inside the Approval Agent's deterministic ruleset (approval-agent/deterministic.py)
+# as a real APPROVAL_REQUIRED decision (human must approve/deny), not an
+# outright OPA BLOCK -- see docs/phase-context/phase-5-context.md
+# ("Test 2 rescoping") for why this changes what Phase 4's original BLOCK
+# test demonstrates.
+#
+# OPA is still a real, independent enforcement layer: it still runs on every
+# request, still defaults to allow, and any future *purely mechanical*
+# Rego-level rule (e.g. malformed method values, unsupported RPC methods)
+# would still belong here -- rather than in the Approval Agent, which is
+# reserved for rules that require deciding "does a human need to authorize
+# this," not raw request-shape validation.
 default allow := true
 
 default block_reason := ""
-
-# Policy 2 (BLOCK) -- deterministic, demonstrable condition: block any
-# tools/call whose underlying tool is "sendFeedback". Per Phase 1's
-# tools/list probe, sendFeedback is the one write-capable tool on either
-# MCP target (searchDocumentation and getPage are both readOnlyHint: true);
-# this policy enforces "no write operations through this gateway" without
-# needing an artificial test flag.
-allow := false if {
-	input.method == "tools/call"
-	endswith(input.bare_tool_name, "sendFeedback")
-}
-
-block_reason := sprintf("write operation blocked: tool %q is not read-only", [input.tool_name]) if not allow

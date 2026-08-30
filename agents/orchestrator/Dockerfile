@@ -6,7 +6,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY main.py router.py a2a_client.py ./
+COPY main.py router.py a2a_client.py approval_client.py ./
 
 # The HTTP protocol contract on AgentCore Runtime requires listening on
 # 0.0.0.0:8080 with POST /invocations and GET /ping -- BedrockAgentCoreApp.run()

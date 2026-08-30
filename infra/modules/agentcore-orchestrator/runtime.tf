@@ -21,6 +21,7 @@ resource "aws_bedrockagentcore_agent_runtime" "this" {
   environment_variables = {
     API_SECURITY_AGENT_RUNTIME_ARN     = var.api_security_agent_runtime_arn
     AGENTIC_SECURITY_AGENT_RUNTIME_ARN = var.agentic_security_agent_runtime_arn
+    APPROVAL_AGENT_RUNTIME_ARN         = var.approval_agent_runtime_arn
     # Not AWS_REGION -- reserved by the AgentCore Runtime platform itself
     # (same reasoning as GATEWAY_REGION in Phase 2's gateway_tool.py).
     AGENT_REGION = var.aws_region

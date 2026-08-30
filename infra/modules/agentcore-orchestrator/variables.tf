@@ -38,6 +38,16 @@ variable "agentic_security_agent_runtime_arn" {
   type        = string
 }
 
+variable "approval_agent_runtime_arn" {
+  description = <<-EOT
+    Phase 5: ARN of the Approval Agent's AgentCore Runtime. The orchestrator
+    calls this read-only (get_decision action) to check what a human decided
+    when resuming a paused delegated-agent task -- see
+    agents/orchestrator/approval_client.py.
+  EOT
+  type        = string
+}
+
 variable "container_image_tag" {
   description = <<-EOT
     Tag of the container image to deploy, already pushed to the orchestrator's

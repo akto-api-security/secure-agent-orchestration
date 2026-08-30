@@ -28,34 +28,42 @@ API Security Agent          Agentic Security Agent
         AgentCore Gateway
                  |
                  v
-      REQUEST Interceptor Lambda
+      REQUEST Interceptor Lambda  <---- verifies signed grants on resume
                  |
                  v
-        Security controls:
-          - Deterministic approval
-          - Human-in-the-loop
-          - OPA policy enforcement
+        OPA policy enforcement (baseline layer)
                  |
                  v
-      Existing remote MCP servers
+           Approval Agent (AgentCore Runtime)
+        - deterministic approval (e.g. sendFeedback)
+        - semantic HITL (e.g. DAST-related requests, real LLM call)
+        - signed authorization grants (AWS KMS)
+        - human decision state (DynamoDB)
+                 |
+                 v
+     Human: approve / deny / additional instruction
+                 |
+                 v
+      Existing remote MCP servers (only on ALLOW)
        - mac-akto-api-mcp
        - mac-akto-ai-mcp
 ```
 
-An Approval Agent/workflow handles approval, denial, additional human
-instructions, and signed authorization grants. Workflow state lives in
-DynamoDB; signed grants use AWS KMS.
+The Approval Agent owns all approval/HITL decision-making; the interceptor
+only routes to it and enforces the result. A human decides via
+`scripts/approval_decide.py`; an approved request resumes with a signed,
+single-use grant (KMS) that the interceptor verifies before allowing
+execution. See `docs/phase-context/phase-5-context.md` for the full design.
 
 ## Repository layout
 
 | Path | Purpose | Status |
 |---|---|---|
-| `infra/` | Terraform: state backend + per-environment stacks | Phase 1 (Gateway) and Phase 2 (delegated agents) deployed and live-tested; Phase 3 (Orchestrator) built, not yet deployed |
-| `agents/` | Orchestrator, API Security Agent, Agentic Security Agent | API/Agentic Security Agents: deployed and live-tested (Phase 2). Orchestrator: code built (Phase 3), routes between the two agents over A2A, not yet deployed |
-| `gateway/` | AgentCore Gateway config, REQUEST interceptor Lambda, MCP targets | Placeholder (interceptor is Phase 4; the Gateway itself lives in `infra/modules/agentcore-gateway/`, deployed) |
-| `policy/` | OPA policies | Placeholder (Phase 4) |
-| `approval-workflow/` | Approval Agent/workflow, DynamoDB + KMS | Placeholder (Phase 5) |
-| `scripts/` | Local dev/prereq helper scripts | Active |
+| `infra/` | Terraform: state backend + per-environment stacks (Gateway, delegated agents, Orchestrator, interceptor, Approval Agent) | Deployed and live-tested, Phases 1-5 |
+| `agents/` | Orchestrator, API Security Agent, Agentic Security Agent | Deployed and live-tested, Phases 2-5 |
+| `interceptor/` | REQUEST interceptor Lambda + OPA baseline policy; routes to the Approval Agent | Deployed and live-tested, Phases 4-5 |
+| `approval-agent/` | Approval Agent -- deterministic + semantic (LLM) approval rules, signed grants, human decision state | Deployed and live-tested, Phase 5 |
+| `scripts/` | Local dev/prereq helper scripts, plus gitignored test/demo scripts that invoke real deployed AWS resources | Active |
 
 ## Prerequisites
 

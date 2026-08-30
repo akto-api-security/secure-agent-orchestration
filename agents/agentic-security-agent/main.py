@@ -5,7 +5,7 @@ from bedrock_agentcore.runtime import serve_a2a
 from strands import Agent
 from strands.multiagent.a2a.executor import StrandsA2AExecutor
 
-from gateway_tool import discover_gateway_tools
+from gateway_tool import GatewayApprovalHook, discover_gateway_tools
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -32,9 +32,19 @@ def build_agent(context_id: str) -> Agent:
             "clear, concise answer grounded in what the tool returns, and note that it is "
             "sourced from Akto's documentation. If, and only if, the user explicitly asks "
             "you to submit or send feedback about the documentation, use the sendFeedback "
-            "tool with the feedback content they provided."
+            "tool with the feedback content they provided. Some tool calls may come back "
+            "denied or asking for human input before they can proceed -- if that happens, "
+            "clearly relay the reference and question to the user and stop; do not retry "
+            "the same call yourself."
         ),
         tools=discover_gateway_tools(),
+        # Phase 5: converts an interceptor APPROVAL_REQUIRED/HITL_REQUIRED
+        # marker into a real Strands interrupt (A2A task state
+        # input_required) and a resumed human decision into a grant-bearing
+        # retry, a cancellation, or a surfaced instruction. One instance per
+        # context (this function runs once per A2A context_id), so pending
+        # state never leaks across concurrent conversations.
+        hooks=[GatewayApprovalHook()],
     )
 
 

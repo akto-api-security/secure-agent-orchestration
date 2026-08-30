@@ -1,6 +1,6 @@
-# Phase 1 resources live here via infra/modules/. Later phases (delegated
-# agents, orchestrator, interceptor/OPA, approval-workflow) will add their
-# own module blocks below as they're implemented.
+# All phases' resources live here via infra/modules/ -- Phase 1 (gateway),
+# Phase 2 (delegated agents), Phase 3 (orchestrator), Phase 4
+# (interceptor/OPA), Phase 5 (Approval Agent).
 
 locals {
   common_tags = {
@@ -8,6 +8,27 @@ locals {
     Environment = var.environment
     ManagedBy   = "terraform"
   }
+}
+
+# Phase 5: Approval Agent -- owns all approval/HITL business logic
+# (deterministic sendFeedback rule, semantic DAST classification, grant
+# issuance/verification, human decision state). Defined before the
+# interceptor module below since the interceptor needs its runtime ARN to
+# call it; the Approval Agent has no dependency back on the interceptor or
+# gateway, so this ordering avoids a circular module reference.
+module "approval_agent" {
+  source = "../../modules/approval-agent"
+
+  project_name = var.project_name
+  environment  = var.environment
+  aws_region   = var.aws_region
+
+  agent_runtime_name = "asl_approval_agent_${var.environment}"
+  description        = "Approval Agent -- owns deterministic approval and semantic HITL decisions, human decision state, and signed authorization grants for the Phase 4 interceptor."
+
+  tags = merge(local.common_tags, {
+    Phase = "5"
+  })
 }
 
 # Phase 4: REQUEST interceptor Lambda, defined before the gateway module
@@ -22,6 +43,10 @@ module "gateway_interceptor" {
   environment  = var.environment
   aws_region   = var.aws_region
   log_level    = var.interceptor_log_level
+
+  # Phase 5: routes every OPA-allowed tools/call to the Approval Agent for
+  # the authorization decision (see interceptor/handler.py).
+  approval_agent_runtime_arn = module.approval_agent.agent_runtime_arn
 
   tags = merge(local.common_tags, {
     Phase = "4"
@@ -103,6 +128,9 @@ module "orchestrator" {
 
   api_security_agent_runtime_arn     = module.api_security_agent.agent_runtime_arn
   agentic_security_agent_runtime_arn = module.agentic_security_agent.agent_runtime_arn
+  # Phase 5: resumes a paused delegated-agent task by checking what a human
+  # decided (read-only get_decision calls -- see approval_client.py).
+  approval_agent_runtime_arn = module.approval_agent.agent_runtime_arn
 
   tags = merge(local.common_tags, {
     Phase = "3"
