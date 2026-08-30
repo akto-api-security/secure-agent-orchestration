@@ -25,11 +25,8 @@ test_allow_get_page if {
 	}
 }
 
-# Phase 5: sendFeedback is no longer blocked by OPA -- that decision moved to
-# the Approval Agent's deterministic ruleset (APPROVAL_REQUIRED, not BLOCK).
-# OPA's job now is only to default-allow past this baseline layer so the
-# interceptor can hand the request to the Approval Agent for the real
-# decision. See main.rego's comment and docs/phase-context/phase-5-context.md.
+# sendFeedback is intentionally allowed by OPA -- blocking moved to the
+# Approval Agent (APPROVAL_REQUIRED, not an OPA BLOCK). See main.rego.
 test_allow_send_feedback_api_target if {
 	authz.allow with input as {
 		"method": "tools/call",

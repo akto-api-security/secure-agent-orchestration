@@ -1,18 +1,12 @@
 """Approval Agent -- AgentCore Runtime, HTTP protocol.
 
-Owns all approval/HITL business logic for Phase 5 (see
-docs/phase-context/phase-5-context.md, "Locked responsibility model"). The
-interceptor Lambda (interceptor/handler.py) is the only caller of the
-`authorize` action; a human (via a small CLI, see scripts/) calls `decide`;
-whichever component resumes a paused agent workflow calls `get_decision`.
-
-Same HTTP-protocol AgentCore Runtime pattern already confirmed working for
-the Phase 3 Orchestrator (BedrockAgentCoreApp + @app.entrypoint) -- not a
-new/unverified AWS capability.
+Owns all approval/HITL business logic. The interceptor Lambda
+(interceptor/handler.py) is the only caller of the `authorize` action; a
+human (via a small CLI, see scripts/) calls `decide`; whichever component
+resumes a paused agent workflow calls `get_decision`.
 
 Every branch below is logged with decision_mode/llm_invoked so it's always
-possible to tell, after the fact, whether a given decision involved the LLM
-(see docs/phase-context/phase-5-context.md, "Observability").
+possible to tell, after the fact, whether a given decision involved the LLM.
 """
 
 import logging
@@ -152,12 +146,10 @@ def _handle_authorize(payload: dict) -> dict:
     # whether a real LLM judgment call was actually part of reaching this
     # ALLOW: if any semantic rule exists, semantic.evaluate() above already
     # made a real model call and concluded "does not apply" -- that IS a
-    # semantic judgment, not a fixed/deterministic outcome, so it's labeled
+    # semantic judgment, not a deterministic outcome, so it's labeled
     # "semantic" here too (not just when a semantic rule matches). This
-    # keeps decision_mode/llm_invoked always paired the way the brief's own
-    # observability example expects (deterministic+false or semantic+true),
-    # rather than the inconsistent deterministic+true this branch used to
-    # report -- found via a live Test 1 run, not just review.
+    # keeps decision_mode/llm_invoked always paired correctly (deterministic
+    # + false, or semantic + true), never a mismatched deterministic + true.
     decision_mode = "semantic" if semantic.RULES else "deterministic"
     _log("allow_default", correlation_id=correlation_id, tool_name=tool_name, decision_mode=decision_mode, llm_invoked=bool(semantic.RULES))
     return {"decision": "ALLOW", "reason": "no approval/HITL rule matched", "decision_mode": decision_mode, "llm_invoked": bool(semantic.RULES)}

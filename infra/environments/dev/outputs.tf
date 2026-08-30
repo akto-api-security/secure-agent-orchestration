@@ -89,7 +89,7 @@ output "orchestrator_invoke_policy_arn" {
 }
 
 output "interceptor_lambda_arn" {
-  description = "ARN of the Phase 4 REQUEST interceptor Lambda attached to the Gateway."
+  description = "ARN of the REQUEST interceptor Lambda attached to the Gateway."
   value       = module.gateway_interceptor.lambda_arn
 }
 

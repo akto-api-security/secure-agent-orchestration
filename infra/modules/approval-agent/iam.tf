@@ -1,6 +1,6 @@
 data "aws_caller_identity" "current" {}
 
-# Same trust policy shape as the other AgentCore Runtime agents (Phase 2/3):
+# Same trust policy shape as the other AgentCore Runtime agents:
 # bedrock-agentcore.amazonaws.com may assume this role only for a
 # bedrock-agentcore resource in this account/region.
 data "aws_iam_policy_document" "assume_role" {
@@ -41,9 +41,8 @@ resource "aws_iam_role" "execution" {
 # own state table, KMS Sign/Verify on its own grants key, and
 # bedrock:InvokeModel scoped to the one model used for semantic (DAST)
 # classification. Deliberately NO bedrock-agentcore:InvokeGateway -- the
-# Approval Agent never talks to the Gateway/MCP targets directly (see
-# docs/phase-context/phase-5-context.md, "Do NOT implement: Approval Agent
-# -> MCP").
+# Approval Agent never talks to the Gateway/MCP targets directly; it only
+# ever receives calls from the interceptor and the orchestrator/human CLI.
 data "aws_iam_policy_document" "execution" {
   statement {
     sid       = "ECRImageAccess"
@@ -170,7 +169,7 @@ resource "aws_iam_role_policy" "execution" {
 # asl-<agent>-invoke-<env> pattern -- for manually testing this runtime's
 # HTTP protocol interface directly. Resource lists both the bare runtime ARN
 # and the /runtime-endpoint/* sub-resource (see the Orchestrator module's own
-# comment on this -- confirmed empirically in Phase 3 that
+# comment on this -- confirmed empirically in that module that
 # bedrock-agentcore:InvokeAgentRuntime is checked inconsistently against
 # either ARN form).
 data "aws_iam_policy_document" "invoke_approval_agent" {

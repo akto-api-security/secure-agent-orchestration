@@ -18,9 +18,8 @@ data "archive_file" "interceptor" {
     # bin/opa-local is build.sh's host-platform copy for running tests on
     # the dev machine (e.g. darwin/arm64) -- only bin/opa (linux/arm64,
     # what the Lambda runtime actually needs) belongs in the deployment
-    # package. Omitting this line was a real bug: it doubled the package
-    # size and pushed CreateFunction's direct-upload request over Lambda's
-    # ~70MB limit.
+    # package; including both pushes the zip over Lambda's ~70MB
+    # direct-upload limit.
     "bin/opa-local",
   ]
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 6 -- resolves the same runtime ARNs/log groups
+# Resolves the same runtime ARNs/log groups
 # scripts/demo_interactive.sh already resolves (env var override, else
 # `terraform output`), exports them, and launches the lightweight demo UI
 # (ui/) against the already-deployed backend. The UI never talks to the

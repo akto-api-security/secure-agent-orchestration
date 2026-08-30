@@ -1,31 +1,25 @@
-"""SigV4-authenticated calls to the Phase 1 AgentCore Gateway, scoped to the
+"""SigV4-authenticated calls to the AgentCore Gateway, scoped to the
 mac-akto-api-mcp MCP target (Akto API Security / DAST documentation).
 
 The Gateway's inbound authorizer is AWS_IAM, the same mechanism already
-verified in Phase 1 with `awscurl`. This module re-implements that signing
-with botocore directly, since the running agent container only carries its
+verified with `awscurl`. This module re-implements that signing with
+botocore directly, since the running agent container only carries its
 AgentCore Runtime execution-role credentials (no `awscurl` available), and
 resolves those credentials from the default boto3 credential chain.
 
-Phase 4.1: every tool the Gateway lists for this target is discovered and
-exposed to the agent's LLM via Strands' native `MCPAgentTool` adapter -- not
-just a single hardcoded/filtered read-only search tool (see
-docs/phase-context/phase-4-1-context.md for why that restriction existed and
-why it was removed). Target isolation is maintained by only keeping tools
-namespaced under TARGET_PREFIX; this agent structurally cannot see or call
-the other MCP target's tools.
+Every tool the Gateway lists for this target is discovered and exposed to
+the agent's LLM via Strands' native `MCPAgentTool` adapter, including
+sendFeedback -- safe because OPA and the Approval Agent still gate
+sendFeedback execution regardless of what the LLM can see. Target isolation
+is maintained by only keeping tools namespaced under TARGET_PREFIX; this
+agent structurally cannot see or call the other MCP target's tools.
 
-Phase 5: the interceptor may now return APPROVAL_REQUIRED/HITL_REQUIRED
-(error codes -32010/-32011) instead of a plain ALLOW/BLOCK, when the
-Approval Agent decides a human must authorize or review a tool call. This
-module surfaces that as a structured marker in the tool result (see
-_ASL_MARKER_KEY) and GatewayApprovalHook converts it into a real Strands
-interrupt -- pausing the agent's turn (surfaced by the A2A layer as task
-state `input_required`, a real A2A/Strands capability, not a workaround --
-see docs/phase-context/phase-5-context.md, "HITL resume mechanism") until a
-human decision resumes it. This module and the LLM itself never decide who
-needs approval -- that decision is made entirely by the interceptor +
-Approval Agent; this file only reacts to it mechanically.
+The interceptor may also return APPROVAL_REQUIRED/HITL_REQUIRED instead of
+a plain ALLOW/BLOCK; GatewayApprovalHook (below) converts that into a real
+Strands interrupt until a human decision resumes it. This module and the
+LLM itself never decide who needs approval -- that decision is made
+entirely by the interceptor + Approval Agent; this file only reacts to it
+mechanically.
 """
 
 import asyncio
@@ -52,7 +46,7 @@ TARGET_PREFIX = os.environ.get("MCP_TARGET_PREFIX", "mac-akto-api-mcp")
 
 # Interceptor error codes for a pending human decision (see
 # interceptor/handler.py's _DECISION_CODES). -32001 (BLOCK) and -32000
-# (fail-closed) are unchanged from Phase 4 and are NOT treated as markers --
+# (fail-closed) are pre-existing codes and are NOT treated as markers --
 # they're terminal errors, not something to pause and resume.
 _PENDING_DECISION_CODES = {-32010: "APPROVAL_REQUIRED", -32011: "HITL_REQUIRED"}
 _ASL_MARKER_KEY = "asl_decision"
@@ -163,14 +157,13 @@ class GatewayApprovalHook(HookProvider):
 
     This hook owns none of the approval/HITL business logic -- it never
     decides whether a tool call needs a human, only reacts to the
-    interceptor + Approval Agent's own decision (see
-    docs/phase-context/phase-5-context.md, "Locked responsibility model").
-    State is per-Agent (one GatewayApprovalHook instance per A2A context_id,
-    since build_agent() constructs a fresh Agent+hook per context), so
-    concurrent conversations never share pending-marker state.
+    interceptor + Approval Agent's own decision. State is per-Agent (one
+    GatewayApprovalHook instance per A2A context_id, since build_agent()
+    constructs a fresh Agent+hook per context), so concurrent conversations
+    never share pending-marker state.
 
-    Mechanics (see phase-5-context.md "HITL resume mechanism" for the full
-    reasoning against the installed Strands SDK's real interrupt support):
+    Mechanics (built from Strands' real interrupt/retry primitives and the
+    A2A input-required task state):
       1. A tool call comes back with an asl_decision marker (AfterToolCallEvent) ->
          stash it, set retry=True (discard this result, re-invoke the same
          tool_use once more -- no second real Gateway call happens yet).

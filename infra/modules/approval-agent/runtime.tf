@@ -1,11 +1,9 @@
 # protocol_configuration.server_protocol = "HTTP", same reasoning as the
-# Orchestrator (Phase 3): the Approval Agent is called directly by the
+# Orchestrator: the Approval Agent is called directly by the
 # interceptor Lambda and by the orchestrator/human CLI -- never as an A2A
 # peer -- so a plain structured JSON request/response over the HTTP
 # protocol contract is all it needs (no agent card, no A2A message
-# envelope). Confirmed AWS capability, not an inference: this is the exact
-# same protocol/invocation mechanism already live-tested for the
-# Orchestrator.
+# envelope).
 #
 # No authorizer_configuration block: inbound authorization defaults to
 # AWS_IAM (SigV4), matching every other AgentCore Runtime resource in this
@@ -29,7 +27,7 @@ resource "aws_bedrockagentcore_agent_runtime" "this" {
     GRANT_TTL_SECONDS            = tostring(var.grant_ttl_seconds)
     LOG_LEVEL                    = var.log_level
     # Not AWS_REGION -- reserved by the AgentCore Runtime platform itself
-    # (same reasoning as GATEWAY_REGION in Phase 2's gateway_tool.py).
+    # (same reasoning as GATEWAY_REGION in the delegated agents' gateway_tool.py).
     AGENT_REGION = var.aws_region
   }
 

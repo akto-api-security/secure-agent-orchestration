@@ -1,16 +1,14 @@
-"""The "agent said vs. actually executed" check (see docs/architecture.md,
-Phase 5: tool_name/execution verification exists for exactly this reason).
+"""The "agent said vs. actually executed" check (see docs/architecture.md --
+tool_name/execution verification exists for exactly this reason).
 
-Ports scripts/demo_interactive.sh's `verify_tool_execution()` exactly:
 gateway_tool.py only logs "Tool call succeeded: tool=<namespaced_tool_name>"
 on a real, executed Gateway/MCP call -- never on a denied/cancelled one. A
 CloudWatch Logs filter for that literal line in the delegated agent's own
-log group is the same non-invented signal the existing bash demo scripts
-already use as evidence, not a new mechanism.
+log group is the evidence used here (mirrors scripts/demo_interactive.sh's
+own verify_tool_execution()).
 
 Never guesses: returns UNKNOWN (not EXECUTED or NOT_EXECUTED) whenever the
-log group can't be resolved or read, exactly like the bash version's
-try_logs degrading gracefully on a logs:FilterLogEvents permission gap.
+log group can't be resolved or read, rather than assuming either outcome.
 """
 
 import logging

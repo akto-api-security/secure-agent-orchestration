@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
-# Phase 6 -- post-deploy smoke test. Read-only against every resource
-# except one benign Orchestrator invoke (a plain API Security question,
-# same class of request Phase 3 already used for its own live tests) --
-# nothing here approves/denies/mutates any approval or infrastructure
-# state.
+# Post-deploy smoke test. Read-only against every resource except one
+# benign Orchestrator invoke (a plain API Security question) -- nothing
+# here approves/denies/mutates any approval or infrastructure state.
 #
 # Exit code 0 = every check passed, 1 = at least one failed.
 #

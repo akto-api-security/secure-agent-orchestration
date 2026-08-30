@@ -47,8 +47,7 @@ def _pending_response(correlation_id: str, domain: str, result: DelegatedAgentRe
     human_question = marker.get("human_question") or result.text or "Human input is required before this can proceed."
     # Surfaced structurally (not just embedded in human_question's free
     # text) so a caller -- e.g. a demo/test script -- can verify enforcement
-    # against the exact tool paused, without parsing prose. gateway_tool.py
-    # already puts this in the marker; it just wasn't exposed here before.
+    # against the exact tool paused, without parsing prose.
     tool_name = marker.get("tool_name")
 
     status = "approval_required" if decision_kind == "APPROVAL_REQUIRED" else "hitl_required"

@@ -1,6 +1,5 @@
-# Bootstrap: creates the S3 bucket that holds Terraform state for every
-# other root in this repo. This root's own state stays local (there is
-# nothing else to bootstrap it from) and is not committed — see .gitignore.
+# This root's own state stays local -- there's nothing else to bootstrap it
+# from -- and is not committed; see .gitignore.
 
 provider "aws" {
   region = var.aws_region

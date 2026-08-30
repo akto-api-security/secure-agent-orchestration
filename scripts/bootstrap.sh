@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 6 -- step 1 of a fresh customer deployment: create the Terraform
+# Step 1 of a fresh customer deployment: create the Terraform
 # state backend (infra/bootstrap) and generate the partial backend config
 # infra/environments/dev needs (see infra/environments/dev/backend.tf,
 # which deliberately has no literal bucket/region -- Terraform backend

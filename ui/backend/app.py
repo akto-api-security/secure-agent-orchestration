@@ -1,9 +1,8 @@
-"""Phase 6 lightweight demo UI backend -- FastAPI, calls only the
-Orchestrator and Approval Agent AgentCore Runtimes (never the Gateway or
-MCP directly, per the brief). Not a production frontend: a thin
-presentation layer over the already-deployed, already-tested Phase 0-5
-backend, mirroring exactly what scripts/demo_interactive.sh already does
-via the AWS CLI.
+"""Lightweight demo UI backend -- FastAPI, calls only the
+Orchestrator and Approval Agent AgentCore Runtimes, never the Gateway or
+MCP directly. Not a production frontend: a thin presentation layer over the
+already-deployed, already-tested backend, mirroring exactly what
+scripts/demo_interactive.sh already does via the AWS CLI.
 
 Run via scripts/start-demo.sh, or directly:
     uvicorn backend.app:app --reload

@@ -1,6 +1,6 @@
 data "aws_caller_identity" "current" {}
 
-# Same trust policy shape as infra/modules/agentcore-runtime-agent (Phase 2):
+# Same trust policy shape as infra/modules/agentcore-runtime-agent:
 # bedrock-agentcore.amazonaws.com may assume this role only for a
 # bedrock-agentcore resource in this account/region.
 data "aws_iam_policy_document" "assume_role" {
@@ -35,14 +35,15 @@ resource "aws_iam_role" "execution" {
 }
 
 # Baseline execution permissions follow the same AWS-documented "AgentCore
-# Runtime execution role" reference policy as Phase 2's agents (ECR pull,
+# Runtime execution role" reference policy as the delegated agents (ECR pull,
 # logs, X-Ray, CloudWatch metrics, workload-identity tokens) -- but
 # deliberately omits bedrock:InvokeModel (the orchestrator routes with a
 # deterministic keyword match, no model call) and omits
 # bedrock-agentcore:InvokeGateway entirely (the orchestrator never talks to
-# the Gateway directly, per the Phase 3 IAM boundary). The one
+# the Gateway directly -- it only ever reaches the delegated agents it
+# routes to and the Approval Agent it queries for decisions). The one
 # project-specific addition is InvokeAgentRuntime scoped to exactly the two
-# Phase 2 delegated agents, not "*" (GetAgentCard is not granted -- see the
+# delegated agents, not "*" (GetAgentCard is not granted -- see the
 # InvokeDelegatedAgents statement below for why).
 data "aws_iam_policy_document" "execution" {
   statement {
@@ -143,12 +144,7 @@ data "aws_iam_policy_document" "execution" {
   # about which ARN form it evaluates against: one live AccessDenied error
   # named arn:...:runtime/<id>/runtime-endpoint/DEFAULT, a second (after
   # granting only that form) named the bare arn:...:runtime/<id> instead.
-  # Granting both is the only way to cover it reliably given that
-  # inconsistency, which looks like a rough edge in this still-new AgentCore
-  # Runtime data-plane API rather than something on our side. Phase 2's own
-  # asl-<agent>-invoke-<env> policies (bare ARN only) likely have this same
-  # gap; it hasn't surfaced there because the human identities testing them
-  # probably have broader permissions elsewhere.
+  # Granting both is the only way to cover it reliably.
   statement {
     sid     = "InvokeDelegatedAgents"
     effect  = "Allow"
@@ -161,12 +157,11 @@ data "aws_iam_policy_document" "execution" {
     ]
   }
 
-  # Phase 5: read-only from the orchestrator's perspective -- its own code
+  # Read-only from the orchestrator's perspective -- its own code
   # (approval_client.py) only ever sends action=get_decision, never
   # decide/authorize. Terraform/IAM can't distinguish payload-level actions
   # on the same InvokeAgentRuntime call, so this is enforced by this
-  # project's own code, not by IAM alone (see docs/phase-context/phase-5-context.md,
-  # "IAM").
+  # project's own code, not by IAM alone.
   statement {
     sid     = "InvokeApprovalAgent"
     effect  = "Allow"
@@ -185,9 +180,9 @@ resource "aws_iam_role_policy" "execution" {
 }
 
 # Standalone policy (not auto-attached), mirroring the asl-<agent>-invoke-<env>
-# policies from Phase 2: grants bedrock-agentcore:InvokeAgentRuntime scoped
-# to the orchestrator's own runtime, for whichever identity you use to test
-# it directly. GetAgentCard is omitted here (unlike Phase 2's agents) since
+# policies from the delegated agents: grants bedrock-agentcore:InvokeAgentRuntime
+# scoped to the orchestrator's own runtime, for whichever identity you use to
+# test it directly. GetAgentCard is omitted here (unlike the delegated agents) since
 # the orchestrator's inbound protocol is HTTP, not A2A -- there's no agent
 # card to fetch.
 #

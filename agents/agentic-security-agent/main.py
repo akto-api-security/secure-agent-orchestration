@@ -38,12 +38,6 @@ def build_agent(context_id: str) -> Agent:
             "the same call yourself."
         ),
         tools=discover_gateway_tools(),
-        # Phase 5: converts an interceptor APPROVAL_REQUIRED/HITL_REQUIRED
-        # marker into a real Strands interrupt (A2A task state
-        # input_required) and a resumed human decision into a grant-bearing
-        # retry, a cancellation, or a surfaced instruction. One instance per
-        # context (this function runs once per A2A context_id), so pending
-        # state never leaks across concurrent conversations.
         hooks=[GatewayApprovalHook()],
     )
 

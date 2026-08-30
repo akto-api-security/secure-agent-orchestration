@@ -1,8 +1,8 @@
 """Non-deterministic (semantic) approval rules -- LLM call required.
 
 Each rule here calls a real Bedrock model to make a judgment call that a
-keyword/string match cannot make reliably (the Phase 5 brief explicitly
-forbids `if "dast" in text`). Structured output is enforced via Bedrock
+keyword/string match cannot make reliably (a plain `if "dast" in text`
+check is deliberately not used here). Structured output is enforced via Bedrock
 Converse's tool-forcing (`toolChoice`), not free-text parsing -- the model
 is required to call a single-purpose classification "tool", so its answer
 always deserializes to the expected shape instead of relying on parsing
@@ -128,8 +128,7 @@ def _rule_dast_requires_hitl(request: dict) -> Decision | None:
     )
 
 
-# Ordered list of semantic rules. Evaluated top to bottom; the first match
-# wins. Each rule call here is a real LLM invocation -- keep this list short.
+# Each rule call here is a real LLM invocation -- keep this list short.
 RULES = [_rule_dast_requires_hitl]
 
 

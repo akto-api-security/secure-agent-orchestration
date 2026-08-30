@@ -3,7 +3,7 @@
 Each rule is a plain function of the request; the first one that returns a
 non-None Decision wins. Adding a future rule (Argus, Atlas, a new
 high-risk tool) means appending one function here -- the interceptor never
-changes (see docs/phase-context/phase-5-context.md, "Future extensibility").
+changes.
 """
 
 from dataclasses import dataclass
@@ -19,7 +19,7 @@ class Decision:
 def _rule_send_feedback_requires_approval(request: dict) -> Decision | None:
     """sendFeedback always requires human approval, on either MCP target.
 
-    This is the Phase 5 brief's own worked example of a deterministic rule:
+    This is the project's own worked example of a deterministic rule:
     a fixed tool/action -> approval mapping, decided purely by tool
     identity, never by reasoning about content.
     """
@@ -35,8 +35,6 @@ def _rule_send_feedback_requires_approval(request: dict) -> Decision | None:
     )
 
 
-# Ordered list of deterministic rules. Evaluated top to bottom; the first
-# match wins. Append future rules here.
 RULES = [_rule_send_feedback_requires_approval]
 
 

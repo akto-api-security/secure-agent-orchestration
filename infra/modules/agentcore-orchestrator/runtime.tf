@@ -4,9 +4,9 @@
 # reasoning. "HTTP" is a documented value alongside "MCP" and "A2A" per
 # AWS's ProtocolConfiguration API reference.
 #
-# No authorizer_configuration block, matching Phase 2's agents: inbound
-# authorization defaults to AWS_IAM (SigV4), tested the same way as the
-# Phase 2 agents (a SigV4-signed InvokeAgentRuntime call).
+# No authorizer_configuration block, matching the delegated agents: inbound
+# authorization defaults to AWS_IAM (SigV4), tested the same way as those
+# agents (a SigV4-signed InvokeAgentRuntime call).
 resource "aws_bedrockagentcore_agent_runtime" "this" {
   agent_runtime_name = var.agent_runtime_name
   description        = var.description
@@ -23,7 +23,7 @@ resource "aws_bedrockagentcore_agent_runtime" "this" {
     AGENTIC_SECURITY_AGENT_RUNTIME_ARN = var.agentic_security_agent_runtime_arn
     APPROVAL_AGENT_RUNTIME_ARN         = var.approval_agent_runtime_arn
     # Not AWS_REGION -- reserved by the AgentCore Runtime platform itself
-    # (same reasoning as GATEWAY_REGION in Phase 2's gateway_tool.py).
+    # (same reasoning as GATEWAY_REGION in the delegated agents' gateway_tool.py).
     AGENT_REGION = var.aws_region
   }
 

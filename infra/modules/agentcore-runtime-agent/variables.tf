@@ -38,12 +38,12 @@ variable "description" {
 }
 
 variable "gateway_arn" {
-  description = "ARN of the Phase 1 AgentCore Gateway this agent is allowed to invoke."
+  description = "ARN of the AgentCore Gateway this agent is allowed to invoke."
   type        = string
 }
 
 variable "gateway_url" {
-  description = "MCP endpoint URL of the Phase 1 AgentCore Gateway, passed to the container as GATEWAY_URL."
+  description = "MCP endpoint URL of the AgentCore Gateway, passed to the container as GATEWAY_URL."
   type        = string
 }
 

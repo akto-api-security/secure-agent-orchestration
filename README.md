@@ -5,7 +5,7 @@ architecture, used to prototype and test security controls without touching
 the client's environment.
 
 **Akto integration (Guardrail, SDK, dashboard, enforcement layer) is explicitly
-out of scope until a later phase.** This repo currently contains no Akto
+out of scope for this project.** This repo currently contains no Akto
 components.
 
 ## Architecture (locked)
@@ -67,11 +67,6 @@ execution.
 | `interceptor/` | REQUEST interceptor Lambda + OPA baseline policy; routes approval decisions to the Approval Agent |
 | `ui/` | Lightweight demo UI -- FastAPI backend + static HTML/JS, calls only the Orchestrator and Approval Agent runtimes |
 | `scripts/` | Deployment/build/verify scripts used in the steps below |
-
-Every service under `agents/` and `approval-agent/` is independently
-buildable and deployable -- the Gateway, interceptor, OPA policy, and
-Terraform are managed as separate infrastructure, not bundled into any one
-service.
 
 ## Prerequisites
 
@@ -196,8 +191,7 @@ scripts/build-and-push.sh <version>   # e.g. scripts/build-and-push.sh v0.1.0 (o
 
 This builds all 4 images (`linux/arm64`) and pushes them to the repositories
 created in Step 7, tagged with `<version>` -- **never `:latest`**, so a
-later rebuild can't silently go stale without Terraform noticing it (this
-project hit exactly that bug once with a `:latest`-tagged deployment). It
+later rebuild can't silently go stale without Terraform noticing it. It
 prints the exact command for Step 9 when done.
 
 ### Step 9 -- Deploy the full stack
@@ -233,6 +227,11 @@ a question, and try triggering an approval (e.g. "please submit feedback
 about...") or a DAST-related question to see the human-in-the-loop flow.
 See `ui/README.md` for the full scenario list and what each button does.
 
+Prefer a terminal-only walkthrough instead? `scripts/demo_interactive.sh`
+drives the same three outcomes (plain answer, deterministic approval,
+semantic HITL) interactively from the CLI -- see its own header comment for
+details.
+
 ## Demo scenarios
 
 `ui/README.md` maps out all of this project's demo scenarios (normal
@@ -245,7 +244,7 @@ MCP tool call actually happened.
 ## Conventions
 
 - Resource naming: `asl-<component>-<env>`
-- Tags on every resource: `Project=<project_name>`, `Environment`, `ManagedBy=terraform`, `Phase`
+- Tags on every resource: `Project=<project_name>`, `Environment`, `ManagedBy=terraform`
 - No secrets or Terraform state committed to git (see `.gitignore`)
 - Container images are versioned (`image_tag`), never `:latest`, for any
   deployment created via the steps above
@@ -268,10 +267,14 @@ separately (`infra/bootstrap`) if you want a fully clean account.
 
 If you're working from a full development checkout of this project (rather
 than a plain `git clone`), you may also see a `docs/` directory and a
-handful of extra scripts under `scripts/` (`demo_interactive.sh`,
-`test_approval_flow.sh`, `test_hitl_flow.sh`, `approval_decide.py`). Both
-are gitignored on purpose -- `docs/` holds internal design/phase notes not
+handful of extra scripts under `scripts/` (`test_approval_flow.sh`,
+`test_hitl_flow.sh`, `test_sendfeedback_block.sh`, `approval_decide.py`).
+Both are gitignored on purpose -- `docs/` holds internal design notes not
 meant for client sharing, and those scripts hardcode a specific
 deployment's own resource IDs for quick local debugging. Neither is part of
-a fresh clone, and neither is required by the steps above -- the UI and the
-scripts in this README are the supported path.
+a fresh clone, and neither is required by the steps above.
+
+`scripts/demo_interactive.sh`, by contrast, **is** tracked and part of the
+supported path -- an interactive CLI driver for the same demo flows the UI
+covers, handy when you want a scripted/terminal-only walkthrough instead of
+the browser UI. See its own header comment for usage.

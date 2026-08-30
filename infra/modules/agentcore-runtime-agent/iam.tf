@@ -3,7 +3,7 @@ data "aws_caller_identity" "current" {}
 # Trust policy per AWS's documented AgentCore Runtime execution-role trust
 # policy: bedrock-agentcore.amazonaws.com may assume this role only for a
 # bedrock-agentcore resource in this account/region. Unlike the Gateway's
-# service role (Phase 1), there's no circular dependency here -- the
+# service role, there's no circular dependency here -- the
 # runtime's name (and therefore aws:SourceArn) is chosen by us up front, so
 # the SourceArn condition can be scoped at creation time rather than added
 # as a follow-up.
@@ -43,9 +43,9 @@ resource "aws_iam_role" "execution" {
 # CloudWatch metrics, workload-identity tokens, Bedrock model invocation --
 # https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-permissions.html),
 # plus one project-specific addition: bedrock-agentcore:InvokeGateway scoped
-# to the Phase 1 gateway only (not all gateways in the account), mirroring
-# the least-privilege pattern already used for asl-gateway-invoke-dev in
-# Phase 1.
+# to this agent's own gateway only (not all gateways in the account),
+# mirroring the least-privilege pattern already used for
+# asl-gateway-invoke-dev on the gateway's own service role.
 data "aws_iam_policy_document" "execution" {
   statement {
     sid       = "ECRImageAccess"
@@ -148,7 +148,7 @@ data "aws_iam_policy_document" "execution" {
   }
 
   statement {
-    sid       = "InvokePhase1Gateway"
+    sid       = "InvokeGateway"
     effect    = "Allow"
     actions   = ["bedrock-agentcore:InvokeGateway"]
     resources = [var.gateway_arn]
@@ -162,7 +162,7 @@ resource "aws_iam_role_policy" "execution" {
 }
 
 # Standalone policy (not auto-attached to anything), mirroring
-# asl-gateway-invoke-dev from Phase 1: grants the two actions needed to
+# asl-gateway-invoke-dev: grants the two actions needed to
 # directly test this agent's A2A interface over SigV4 -- InvokeAgentRuntime
 # to send a task, GetAgentCard to fetch its agent card (a separately
 # grantable action; InvokeAgentRuntime alone does not cover it). Attach it

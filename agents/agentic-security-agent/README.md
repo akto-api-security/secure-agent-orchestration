@@ -1,6 +1,6 @@
 # Agentic Security Agent
 
-Phase 2 — Delegated Agents + A2A. Runs on Amazon Bedrock AgentCore Runtime as
+A delegated agent, invoked over A2A. Runs on Amazon Bedrock AgentCore Runtime as
 an A2A server, representing Akto's **Atlas / Argus / agentic security / MCP
 security / A2A security** domain.
 
@@ -14,7 +14,7 @@ Strands Agent (Bedrock model, this container)
 gateway_tool.py -- SigV4 tools/list + tools/call
    |
    v
-AgentCore Gateway (Phase 1: asl-gateway-dev-xxxxxxxxxx)
+AgentCore Gateway (asl-gateway-dev-xxxxxxxxxx)
    |
    v
 mac-akto-ai-mcp  ->  https://ai-security-docs.akto.io/~gitbook/mcp
@@ -28,7 +28,7 @@ A2A response (artifact text)
 | File | Purpose |
 |---|---|
 | `main.py` | Builds the Strands `Agent` and starts it as an A2A server via `bedrock_agentcore.runtime.serve_a2a`. |
-| `gateway_tool.py` | SigV4-signs `tools/list`/`tools/call` requests to the Phase 1 Gateway, scoped to the `mac-akto-ai-mcp` target. **Phase 4.1:** discovers every tool the Gateway lists for this target (not just one hardcoded search tool) and exposes each as a Strands `MCPAgentTool` -- currently `searchDocumentation`, `getPage`, and `sendFeedback`. Cross-target tools are excluded by the `MCP_TARGET_PREFIX` namespace filter. |
+| `gateway_tool.py` | SigV4-signs `tools/list`/`tools/call` requests to the Gateway, scoped to the `mac-akto-ai-mcp` target. Discovers every tool the Gateway lists for this target (not just one hardcoded search tool) and exposes each as a Strands `MCPAgentTool` -- currently `searchDocumentation`, `getPage`, and `sendFeedback`. Cross-target tools are excluded by the `MCP_TARGET_PREFIX` namespace filter. |
 | `Dockerfile` | ARM64 container image, listens on `0.0.0.0:9000` (AgentCore's required A2A port/path). |
 | `requirements.txt` | `strands-agents[a2a]`, `bedrock-agentcore`, `boto3`, `requests`. |
 
@@ -36,7 +36,7 @@ A2A response (artifact text)
 
 | Variable | Meaning |
 |---|---|
-| `GATEWAY_URL` | Phase 1 Gateway MCP endpoint. |
+| `GATEWAY_URL` | Gateway MCP endpoint. |
 | `GATEWAY_REGION` | Region for SigV4 signing (kept separate from `AWS_REGION`, which some managed compute platforms reserve). |
 | `MCP_TARGET_PREFIX` | `mac-akto-ai-mcp` -- the Gateway target namespace this agent is scoped to. |
 | `BEDROCK_MODEL_ID` | Defaults to `us.anthropic.claude-haiku-4-5-20251001-v1:0` (verified ACTIVE in this account/region). |
@@ -58,14 +58,14 @@ aws ecr get-login-password --region us-east-1 \
 docker buildx build --platform linux/arm64 -t "${ECR_REPO}:latest" --push .
 ```
 
-**zsh users:** brace the variable (`${ECR_REPO}:latest`, not `$ECR_REPO:latest`) -- unbraced, zsh parses the `:l` in `:latest` as its own "lowercase" modifier and drops it, corrupting the tag into `...-devatest`-style garbage instead of `...-dev:latest`. Confirmed while debugging the same pattern in Phase 3's orchestrator build.
+**zsh users:** brace the variable (`${ECR_REPO}:latest`, not `$ECR_REPO:latest`) -- unbraced, zsh parses the `:l` in `:latest` as its own "lowercase" modifier and drops it, corrupting the tag into `...-devatest`-style garbage instead of `...-dev:latest`. Confirmed while debugging the same pattern in the orchestrator build.
 
 Terraform can't create the `aws_bedrockagentcore_agent_runtime` resource
 until an image tagged `:latest` exists in the repo it references -- apply
 Terraform once to create the ECR repo, push the image, then apply again to
 create the runtime.
 
-## Rebuild and redeploy an already-running runtime (Phase 4.1)
+## Rebuild and redeploy an already-running runtime
 
 **Overwriting the `:latest` tag in ECR does not make the already-deployed
 AgentCore Runtime pick up the new image.** `container_uri` is pinned to that
@@ -119,7 +119,7 @@ pip install -r requirements.txt
 export GATEWAY_URL="https://asl-gateway-dev-xxxxxxxxxx.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp"
 export GATEWAY_REGION=us-east-1
 export MCP_TARGET_PREFIX=mac-akto-ai-mcp
-# AWS credentials with bedrock-agentcore:InvokeGateway on the Phase 1 gateway
+# AWS credentials with bedrock-agentcore:InvokeGateway on the gateway
 # and bedrock:InvokeModel must be active in your shell (e.g. via aws sso login).
 python main.py
 ```
@@ -151,23 +151,15 @@ streamed text deltas, not one blob -- reassemble the answer with:
 ... | jq -r '[.result.artifacts[0].parts[].text] | join("")'
 ```
 
-**Verified locally** (2026-08-29, real AWS credentials, real Gateway/MCP
-call, no mocking): this exact request against a local `python main.py` run
-returned a 1585-character answer grounded in Akto's actual docs (the Argus
-probe library, direct/indirect prompt injection, jailbreak variants, Prompt
-Hardening, the Probe Editor, the guardrail-policy playground), sourced via a
-real `tools/list` -> `mac-akto-ai-mcp___searchDocumentation` -> `tools/call`
-round trip through the Phase 1 Gateway.
-
 ## Test the deployed agent
 
 The agent runtime is created with no `authorizer_configuration` block, which
 leaves inbound A2A authorization on **AWS_IAM (SigV4)** -- this is an
 implementation inference (see `infra/modules/agentcore-runtime-agent/runtime.tf`),
-consistent with the Phase 1 Gateway's own choice to avoid standing up
+consistent with the Gateway's own choice to avoid standing up
 Cognito, but **not yet confirmed by a real signed invoke**. Confirm it by
 sending a SigV4-signed `InvokeAgentRuntime` call (e.g. with `awscurl`, same
-tool used to verify the Gateway in Phase 1) against:
+tool used to verify the Gateway originally) against:
 
 ```
 https://bedrock-agentcore.us-east-1.amazonaws.com/runtimes/<ESCAPED_AGENT_RUNTIME_ARN>/invocations/
@@ -177,5 +169,5 @@ using the JSON-RPC `message/send` body shown above. The identity used must
 have `bedrock-agentcore:InvokeAgentRuntime` and `bedrock-agentcore:GetAgentCard`
 scoped to this agent's runtime ARN -- Terraform creates that as a standalone
 policy (`agentic_security_agent_invoke_policy_arn` output, mirroring
-`asl-gateway-invoke-dev` from Phase 1) but does **not** attach it to
+`asl-gateway-invoke-dev`) but does **not** attach it to
 anything automatically. Attach it to whichever identity you test with.

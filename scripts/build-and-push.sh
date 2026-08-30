@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Phase 6 -- build and push all 4 service images (ARM64, per AgentCore
-# Runtime's requirement -- see each Dockerfile) to this deployment's own
-# per-service ECR repositories, tagged with one immutable version instead
-# of "latest" (see docs/portability-notes.md and phase-6-context.md for why
-# "latest" isn't safe for a customer deployment -- Terraform doesn't detect
-# a re-pushed image under the same tag, the exact problem Phase 3 hit).
+# Build and push all 4 service images (ARM64, per AgentCore Runtime's
+# requirement) to this deployment's own per-service ECR repositories,
+# tagged with one immutable version instead of "latest" -- Terraform
+# doesn't detect a re-pushed image under the same tag, so a rebuild under
+# ":latest" can silently go stale.
 #
 # Requires: infra/environments/dev already applied at least once (so each
 # service's *_ecr_repository_url output exists), Docker with buildx,

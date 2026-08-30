@@ -40,7 +40,7 @@ variable "tags" {
 
 variable "enable_interceptor" {
   description = <<-EOT
-    Phase 4: whether to attach a REQUEST interceptor to the gateway. A plain
+    Whether to attach a REQUEST interceptor to the gateway. A plain
     boolean, not inferred from interceptor_lambda_arn being non-null -- the
     ARN comes from another module and is unknown at plan time on a first
     apply, and Terraform can't evaluate a `count`/`for_each` based on an
@@ -54,7 +54,7 @@ variable "enable_interceptor" {
 
 variable "interceptor_lambda_arn" {
   description = <<-EOT
-    Phase 4: ARN of the REQUEST interceptor Lambda (from the
+    ARN of the REQUEST interceptor Lambda (from the
     gateway-interceptor module). Only used when enable_interceptor = true.
   EOT
   type        = string

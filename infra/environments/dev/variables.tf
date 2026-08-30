@@ -18,7 +18,7 @@ variable "environment" {
 
 variable "image_tag" {
   description = <<-EOT
-    Phase 6: immutable tag applied to all 4 service images (orchestrator,
+    Immutable tag applied to all 4 service images (orchestrator,
     API Security Agent, Agentic Security Agent, Approval Agent) --
     scripts/build-and-push.sh tags/pushes every image with this same
     value (defaults to a git short SHA there, never "latest"). Defaults to
@@ -33,7 +33,7 @@ variable "image_tag" {
 
 variable "interceptor_log_level" {
   description = <<-EOT
-    Phase 4: interceptor Lambda LOG_LEVEL. Set to "DEBUG" for the first
+    Interceptor Lambda LOG_LEVEL. Set to "DEBUG" for the first
     live test against the real Gateway to log the raw interceptor event
     (see interceptor/handler.py) -- e.g.
     `terraform apply -var 'interceptor_log_level=DEBUG'`. Drop back to the

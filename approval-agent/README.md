@@ -1,16 +1,16 @@
-# Approval Agent (Phase 5)
+# Approval Agent
 
 Owns all approval/human-in-the-loop business logic for this project. Runs
 as its own AWS Bedrock AgentCore Runtime (HTTP protocol -- the same pattern
-already used and live-tested for the Phase 3 Orchestrator), invoked by the
-Phase 4 interceptor Lambda for every OPA-allowed `tools/call`, and by a
+already used and live-tested for the Orchestrator), invoked by the
+interceptor Lambda for every OPA-allowed `tools/call`, and by a
 human's own CLI/API calls to record a decision.
 
-See [../docs/phase-context/phase-5-context.md](../docs/phase-context/phase-5-context.md)
-for the full design (locked responsibility model, grant mechanism, HITL
-resume mechanism, AWS capabilities verified vs. inferred) and
-[../docs/architecture.md](../docs/architecture.md) ("Phase 5 implementation")
-for the Terraform/IAM wiring.
+See this repo's internal design notes under `../docs/` (gitignored, not part
+of the public repo) for the full design (locked responsibility model, grant
+mechanism, HITL resume mechanism, AWS capabilities verified vs. inferred)
+and [../docs/architecture.md](../docs/architecture.md) ("Approval Agent
+implementation") for the Terraform/IAM wiring.
 
 ```
 Interceptor
@@ -69,12 +69,11 @@ Returns `{"status": "PENDING|APPROVED|DENIED|INSTRUCTED|NOT_FOUND", "kind": "...
 ## Why this runs on AgentCore Runtime, not a Lambda
 
 The delegated agents, the Orchestrator, and this component all run on
-AgentCore Runtime for architectural consistency, and because "Approval
-Agent" is a real, first-class component of the client's own diagram (not
-just a policy check) -- see the phase-5-context doc for the full reasoning,
-including the AWS-capability research this design is based on (there is no
-native AgentCore approval/HITL mechanism to use instead -- confirmed by
-direct research this session, not assumed).
+AgentCore Runtime for architectural consistency. There is no native
+AgentCore approval/HITL mechanism, so the Approval Agent is a first-class
+component in its own right rather than a policy check bolted onto
+something else -- see the internal design notes under `../docs/` for the
+full reasoning.
 
 ## Local testing
 

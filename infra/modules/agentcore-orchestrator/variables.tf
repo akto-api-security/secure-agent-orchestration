@@ -29,18 +29,18 @@ variable "description" {
 }
 
 variable "api_security_agent_runtime_arn" {
-  description = "ARN of the Phase 2 API Security Agent's AgentCore Runtime. The orchestrator is granted InvokeAgentRuntime/GetAgentCard scoped to this ARN only."
+  description = "ARN of the API Security Agent's AgentCore Runtime. The orchestrator is granted InvokeAgentRuntime/GetAgentCard scoped to this ARN only."
   type        = string
 }
 
 variable "agentic_security_agent_runtime_arn" {
-  description = "ARN of the Phase 2 Agentic Security Agent's AgentCore Runtime. The orchestrator is granted InvokeAgentRuntime/GetAgentCard scoped to this ARN only."
+  description = "ARN of the Agentic Security Agent's AgentCore Runtime. The orchestrator is granted InvokeAgentRuntime/GetAgentCard scoped to this ARN only."
   type        = string
 }
 
 variable "approval_agent_runtime_arn" {
   description = <<-EOT
-    Phase 5: ARN of the Approval Agent's AgentCore Runtime. The orchestrator
+    ARN of the Approval Agent's AgentCore Runtime. The orchestrator
     calls this read-only (get_decision action) to check what a human decided
     when resuming a paused delegated-agent task -- see
     agents/orchestrator/approval_client.py.

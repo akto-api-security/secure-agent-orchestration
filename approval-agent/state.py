@@ -2,7 +2,7 @@
 
 One table, one item per request, keyed by `reference_id` (the interceptor's
 approval_id/hitl_id). All state transitions here are conditional writes --
-this is the idempotency/replay-prevention boundary the Phase 5 brief
+this is the idempotency/replay-prevention boundary this design
 requires ("a request must not execute multiple times because of retries,
 duplicate human responses, ..."; "grant being reused ... is not possible").
 
@@ -90,11 +90,10 @@ def record_decision(reference_id, *, decision, approver=None, instruction_text=N
     now = int(time.time())
     status = {"approve": "APPROVED", "deny": "DENIED", "instruction": "INSTRUCTED"}[decision]
 
-    # Every non-key attribute name is aliased (#name), not just the ones
-    # known offhand to collide with DynamoDB's ~570-word reserved-word list
-    # (e.g. "grant" is one, found via a live test -- "status"/"decision"
-    # were already/also aliased defensively rather than re-guessing which
-    # other plain-English attribute names might collide).
+    # Every non-key attribute name is aliased (#name) -- not just the ones
+    # known offhand to collide with DynamoDB's reserved-word list (e.g.
+    # "grant" is one); aliasing all of them defensively avoids re-guessing
+    # which other plain-English names might collide.
     update_expr = "SET #status = :status, #decision = :decision, #decided_at = :decided_at"
     expr_values = {":status": status, ":decision": decision, ":decided_at": now, ":pending": "PENDING"}
     expr_names = {"#status": "status", "#decision": "decision", "#decided_at": "decided_at"}

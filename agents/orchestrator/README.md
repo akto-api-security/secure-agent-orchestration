@@ -1,9 +1,9 @@
 # Orchestrator Agent
 
-Phase 3 — Orchestrator. Runs on Amazon Bedrock AgentCore Runtime as an
+Orchestrator. Runs on Amazon Bedrock AgentCore Runtime as an
 **HTTP protocol** server (not A2A) -- it's the top-level entry point invoked
 directly by a caller, not another A2A peer. It classifies each incoming
-question and delegates to one of the two Phase 2 A2A agents.
+question and delegates to one of the two delegated A2A agents.
 
 ```
 POST /invocations {"prompt": "..."}
@@ -30,26 +30,19 @@ A2A response (streamed text parts) -- reassembled here
 
 ## Why HTTP protocol, not A2A, for the orchestrator's own inbound interface
 
-The Phase 3 brief only requires that *delegation* go over A2A -- it doesn't
-require the orchestrator itself to be an A2A server. Nothing else in this
-architecture calls the orchestrator as an A2A peer; it's invoked directly by
-a user/test client. AgentCore Runtime's `protocol_configuration.server_protocol`
-supports `HTTP | MCP | A2A` (confirmed via AWS's `ProtocolConfiguration` API
-reference); `HTTP` is the simplest fit and needs no A2A executor/agent-card
-machinery for a role that's never called as an A2A peer. The container
-implements the standard HTTP protocol contract (`0.0.0.0:8080`,
-`POST /invocations`, `GET /ping`) via `bedrock_agentcore.runtime.BedrockAgentCoreApp`
-+ `@app.entrypoint` -- confirmed present in the same `bedrock-agentcore` SDK
-version Phase 2 already pins, not a separate library.
+Only *delegation* needs to go over A2A -- the orchestrator itself is
+invoked directly by a caller, never as an A2A peer, so it runs the simpler
+`HTTP` protocol (`protocol_configuration.server_protocol` supports
+`HTTP | MCP | A2A`) via `bedrock_agentcore.runtime.BedrockAgentCoreApp` +
+`@app.entrypoint`, needing no A2A executor/agent-card machinery.
 
 ## Why deterministic keyword routing, not an LLM call
 
 The routing surface is exactly the two domain lists in the brief. A
 substring match against those lists (`router.py`) is fully predictable,
 requires no Bedrock model permission on the orchestrator's execution role,
-and is directly traceable to the spec. This also narrows the orchestrator's
-IAM footprint to exactly what the brief's "Important scope boundary" section
-asks for: it never needs `bedrock:InvokeModel` or Gateway access, only
+and is directly traceable to the spec. This also keeps the orchestrator's
+IAM footprint minimal, scoped to exactly what's needed: it never needs `bedrock:InvokeModel` or Gateway access, only
 `bedrock-agentcore:InvokeAgentRuntime` on the two delegated agents
 (`GetAgentCard` isn't granted either, since `a2a_client.py` never calls it).
 
@@ -67,25 +60,19 @@ asks for: it never needs `bedrock:InvokeModel` or Gateway access, only
 
 | Variable | Meaning |
 |---|---|
-| `API_SECURITY_AGENT_RUNTIME_ARN` | Full ARN of the Phase 2 API Security Agent's AgentCore Runtime. |
-| `AGENTIC_SECURITY_AGENT_RUNTIME_ARN` | Full ARN of the Phase 2 Agentic Security Agent's AgentCore Runtime. |
+| `API_SECURITY_AGENT_RUNTIME_ARN` | Full ARN of the API Security Agent's AgentCore Runtime. |
+| `AGENTIC_SECURITY_AGENT_RUNTIME_ARN` | Full ARN of the Agentic Security Agent's AgentCore Runtime. |
 | `AGENT_REGION` | Region used both to construct the `bedrock-agentcore` boto3 client and to sign the A2A call. **Not named `AWS_REGION`** -- see "Naming deviation from the brief" below. |
 | `LOG_LEVEL` | Defaults to `INFO`. |
 
-### Naming deviation from the brief (flagged, not silent)
+### Naming deviation from the brief
 
-The brief asks for an env var literally named `AWS_REGION`. Phase 2's
-`gateway_tool.py` already documents that `AWS_REGION` is reserved by the
-AgentCore Runtime platform itself, which is why it introduced `GATEWAY_REGION`
-instead. This module follows that same precedent with `AGENT_REGION` rather
-than fighting a name the platform may set/reserve out from under Terraform.
-Functionally equivalent, just not the literal name from the brief.
-
-The brief also names the identifiers `API_SECURITY_AGENT_RUNTIME_ID` /
-`AGENTIC_SECURITY_AGENT_RUNTIME_ID`. boto3's `invoke_agent_runtime` requires
-`agentRuntimeArn` (the full ARN), not the short ID, so this module uses
-`..._RUNTIME_ARN` instead -- both Phase 2 agents' own Terraform outputs
-already expose `agent_runtime_arn`, not a bare ID.
+`AWS_REGION` is reserved by the AgentCore Runtime platform itself, so this
+module uses `AGENT_REGION` instead (same precedent as `GATEWAY_REGION` in
+the delegated agents' `gateway_tool.py`). Similarly, boto3's
+`invoke_agent_runtime` requires the full `agentRuntimeArn`, not a short ID,
+so this module uses `..._RUNTIME_ARN` env vars -- matching what the
+delegated agents' own Terraform outputs expose.
 
 ## Build and push the image
 
@@ -102,7 +89,7 @@ docker buildx build --platform linux/arm64 -t "${ECR_REPO}:latest" --push .
 
 **zsh users:** always brace the variable (`${ECR_REPO}:latest`, not `$ECR_REPO:latest`). Unbraced, zsh parses the `:l` in `:latest` as its own "lowercase" history-style modifier and silently drops it, leaving a corrupted tag like `...-devatest` instead of `...-dev:latest` -- this isn't a Docker/Terraform bug, it's zsh-specific parameter-expansion behavior that bash doesn't have. Bracing avoids it entirely.
 
-As with the Phase 2 agents, Terraform can't create the
+As with the delegated agents, Terraform can't create the
 `aws_bedrockagentcore_agent_runtime` resource until an image tagged
 `:latest` exists in the ECR repo -- apply once for the repo, push the image,
 apply again for the runtime.
@@ -148,20 +135,9 @@ Expected `status` field per case: `success` / `success` / `success` /
 field should read `api_security` for the first two and `agentic_security`
 for the next two.
 
-**Verified locally without AWS** (this session): `router.classify()` was run
-directly against all 5 brief test questions plus the two extra examples in
-the "Routing behavior" section, and `a2a_client.invoke_delegated_agent`'s
-response-parsing/error paths (good response, JSON-RPC error envelope,
-malformed JSON, missing `artifacts` shape, `ClientError`) were exercised
-against fake `invoke_agent_runtime` responses -- all matched expected
-behavior. **Not yet verified against the real deployed agents or the real
-deployed orchestrator runtime** -- do that with the `aws bedrock-agentcore
-invoke-agent-runtime` command in the Phase 3 context doc once the image is
-built/pushed and `terraform apply` has run.
-
 ## Test the deployed agent
 
-Same pattern as Phase 2: the runtime has no OAuth/JWT authorizer configured
+Same pattern as the delegated agents: the runtime has no OAuth/JWT authorizer configured
 here (HTTP protocol's default, unauthenticated-by-the-container path relies
 on the standard SigV4-signed `InvokeAgentRuntime` control-plane call, same
 as A2A runtimes), so a caller needs `bedrock-agentcore:InvokeAgentRuntime`
@@ -173,7 +149,7 @@ envelope -- it's the plain JSON dict `main.py`'s entrypoint returns
 (`{"status": ..., "domain": ..., "response": ..., "correlation_id": ...}`),
 because its inbound protocol is HTTP, not A2A. The CLI writes that response
 body directly to `<outfile>` (a required positional argument), and, as with
-Phase 2's agents, `--payload` needs `fileb://<file>` rather than a raw JSON
+the delegated agents, `--payload` needs `fileb://<file>` rather than a raw JSON
 string since it's a blob parameter:
 
 ```bash

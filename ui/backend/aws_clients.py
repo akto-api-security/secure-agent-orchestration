@@ -2,11 +2,9 @@
 needs -- the Orchestrator and the Approval Agent. Mirrors the error-handling
 shape of agents/orchestrator/a2a_client.py's `_invoke` (ClientError/
 BotoCoreError -> one typed exception the API layer turns into a clean JSON
-error) without the A2A-specific request/response shapes, which don't apply
-here: the UI calls the Orchestrator's plain HTTP-protocol entrypoint
-(`{"prompt": ...}` / `{"resume_token": ...}`) exactly as
-scripts/demo_interactive.sh already does via the AWS CLI, not as an A2A
-peer.
+error), but calls the Orchestrator's plain HTTP-protocol entrypoint
+(`{"prompt": ...}` / `{"resume_token": ...}`) rather than treating it as an
+A2A peer.
 
 This module never calls the Gateway or MCP -- only the Orchestrator and
 Approval Agent runtimes, both already reachable via the existing standalone

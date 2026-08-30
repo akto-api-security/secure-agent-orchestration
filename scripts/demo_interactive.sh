@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 5 demo -- interactive, open-ended driver. Handles all three possible
+# Interactive, open-ended demo driver. Handles all three possible
 # outcomes for whatever question you type, uniformly:
 #
 #   - plain ALLOW (e.g. "Tell me about Akto Atlas") -> normal grounded
@@ -14,8 +14,7 @@
 # Security) -- nothing about the domain is hardcoded here, same as the real
 # system. If a decision leads to a follow-up tool call that also needs a
 # decision, this script loops and asks again (capped, see MAX_ROUNDS) --
-# real agent behavior, not a bug (see scripts/test_hitl_flow.sh's header
-# comment for the same note in more detail).
+# real agent behavior, not a bug.
 #
 # scripts/test_approval_flow.sh and scripts/test_hitl_flow.sh are unchanged
 # and still the right choice for the two fixed, scripted demo scenarios
@@ -84,11 +83,10 @@ for key in sys.argv[2].split("."):
 print(data if data is not None else "")
 PYEOF
 }
-# CloudWatch Logs access is a nice-to-have for this script (the delegation
-# trace / evidence steps), not required for the actual approve/deny/resume
-# flow -- so a permissions failure here (e.g. a narrowly-scoped credential
-# shared with someone who only has invoke, not logs, access) prints a note
-# and continues instead of aborting the whole demo via `set -e`.
+# CloudWatch Logs access is a nice-to-have (delegation trace / evidence
+# steps), not required for the approve/deny/resume flow itself -- so a
+# permissions failure here prints a note and continues instead of
+# aborting the whole demo via `set -e`.
 try_logs() {
   if ! aws logs filter-log-events "$@" --query "events[].message" --output text 2>"$WORKDIR/logs_err"; then
     echo "(couldn't read this log group -- likely missing logs:FilterLogEvents; skipping)" >&2

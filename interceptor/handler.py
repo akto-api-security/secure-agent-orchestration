@@ -1,17 +1,15 @@
 """AgentCore Gateway REQUEST interceptor Lambda.
 
-Phase 4 gave this handler one job: normalize the Gateway's MCP-target
-interceptor event and evaluate it against the OPA policy bundled in
-policies/main.rego (invoked as a subprocess -- see README.md "Why OPA as a
-subprocess, not a library"). Phase 5 keeps that OPA pass as a first,
-independent baseline layer (still fail-closed, still default-allow), but
-routes every allowed tools/call on to the Approval Agent (a separate
-AgentCore Runtime service -- approval-agent/) for the actual authorization
-decision: ALLOW, BLOCK, APPROVAL_REQUIRED, or HITL_REQUIRED. This handler
-does NOT itself decide which tools need approval or HITL -- that business
-logic lives entirely in the Approval Agent (see
-docs/phase-context/phase-5-context.md, "Locked responsibility model"). This
-handler only routes to it and enforces whatever it decides.
+This handler has one job: normalize the Gateway's MCP-target interceptor
+event and evaluate it against the OPA policy bundled in policies/main.rego
+(invoked as a subprocess -- see README.md "Why OPA as a subprocess, not a
+library"). That OPA pass is a first, independent baseline layer (fail-closed,
+default-allow), and every allowed tools/call is then routed on to the
+Approval Agent (a separate AgentCore Runtime service -- approval-agent/) for
+the actual authorization decision: ALLOW, BLOCK, APPROVAL_REQUIRED, or
+HITL_REQUIRED. This handler does NOT itself decide which tools need
+approval or HITL -- that business logic lives entirely in the Approval
+Agent. This handler only routes to it and enforces whatever it decides.
 
 Fail-closed: any error (malformed event, OPA eval failure, Approval Agent
 invoke/response failure, unexpected exception) results in a BLOCK response,
@@ -37,10 +35,7 @@ POLICY_PATH = os.environ.get("OPA_POLICY_PATH", os.path.join(_HERE, "policies", 
 OPA_QUERY = "data.gateway.authz"
 OPA_TIMEOUT_SECONDS = 5
 
-# Phase 5: the Approval Agent (AgentCore Runtime, HTTP protocol -- same
-# protocol/invocation mechanism already confirmed working for the Phase 3
-# Orchestrator, not a new/unverified AWS capability). Required: there is no
-# sensible fallback if this isn't wired.
+# No fallback: fail fast at import time if this isn't configured.
 APPROVAL_AGENT_RUNTIME_ARN = os.environ["APPROVAL_AGENT_RUNTIME_ARN"]
 AGENT_REGION = os.environ.get("AGENT_REGION") or boto3.Session().region_name or "us-east-1"
 APPROVAL_AGENT_TIMEOUT_SECONDS = int(os.environ.get("APPROVAL_AGENT_TIMEOUT_SECONDS", "20"))
@@ -68,7 +63,7 @@ class ApprovalAgentError(Exception):
 
 
 def _extract_target_and_tool(namespaced_tool_name):
-    """Gateway namespaces tool names as '<target>___<tool>' (see Phase 1)."""
+    """Gateway namespaces tool names as '<target>___<tool>'."""
     if namespaced_tool_name and "___" in namespaced_tool_name:
         target, _, tool = namespaced_tool_name.partition("___")
         return target, tool
@@ -176,11 +171,8 @@ def _deny_response(request_id, reason, correlation_id, error_code=-32001):
     }
 
 
-# Phase 5: two new terminal-but-not-BLOCK outcomes. Neither AWS's interceptor
-# docs nor any existing convention in this project define codes for these --
-# same situation Phase 4 was already in for BLOCK (-32001)/fail-closed
-# (-32000), so this project picks its own, documented here and in
-# interceptor/README.md.
+# Custom JSON-RPC error codes, not defined by AWS or MCP -- also documented
+# in interceptor/README.md.
 _DECISION_CODES = {"APPROVAL_REQUIRED": -32010, "HITL_REQUIRED": -32011}
 
 
@@ -278,13 +270,10 @@ def handler(event, context):
     correlation_id = str(uuid.uuid4())
     request_id = None
 
-    # Logged before any parsing, at DEBUG, so the very first live
-    # invocation is empirical evidence of the actual event shape this
-    # account's Gateway sends. Safe to log in full: passRequestHeaders is
-    # false (see Terraform module), so no headers/bearer-token/SigV4
-    # material is ever present in this payload. A retried request's grant
-    # lives in `arguments`, not headers, and is opaque ciphertext/signature
-    # material, not a secret whose plaintext would be sensitive to log.
+    # Safe to log in full: passRequestHeaders is false (see Terraform
+    # module), so no headers/bearer-token/SigV4 material is ever present in
+    # this payload, and a retried request's grant in `arguments` is opaque
+    # ciphertext/signature material, not a plaintext secret.
     logger.debug(json.dumps({"correlation_id": correlation_id, "raw_event": event}))
 
     try:
@@ -316,16 +305,13 @@ def handler(event, context):
             return _deny_response(request_id, reason, correlation_id)
 
         if opa_input["method"] != "tools/call":
-            # tools/list, initialize, etc. -- nothing to authorize per-tool;
-            # the Approval Agent exists to gate tool execution, not catalog
-            # browsing, so it isn't consulted for these.
+            # The Approval Agent gates tool execution, not catalog browsing.
             _log(correlation_id, opa_input["tool_name"], opa_input["target"], "allow", "gateway.authz",
                  extra={"method": opa_input["method"], "decision_mode": "opa"})
             return _allow_response(rpc_body)
 
-        # Best-effort only: observed present on a real invocation (Phase 4),
-        # not documented by AWS -- see docs/phase-context/phase-4-context.md
-        # "Known limitations". Absent entirely if unavailable.
+        # Best-effort only: observed present on a real invocation, but
+        # not documented by AWS. Absent entirely if unavailable.
         requesting_principal = ((gateway_request.get("context") or {}).get("identity") or {}).get("awsPrincipalArn")
 
         return _handle_tool_call(rpc_body, request_id, correlation_id, opa_input, requesting_principal)

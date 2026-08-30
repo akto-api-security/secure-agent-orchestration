@@ -2,7 +2,7 @@
 DynamoDB/KMS fakes used by test_state.py/test_grants.py. This is the
 closest thing to a real run of the Approval Agent without touching AWS --
 it exercises the full deterministic-approval and grant-replay chains this
-phase's Definition of Done requires.
+project's Definition of Done requires.
 """
 
 import os

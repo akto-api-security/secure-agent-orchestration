@@ -1,25 +1,22 @@
-"""A2A delegation to the Phase 2 delegated agents (API Security Agent /
+"""A2A delegation to the delegated agents (API Security Agent /
 Agentic Security Agent), both running on AgentCore Runtime.
 
 Sends a standard A2A JSON-RPC `message/send` request via boto3's
 `bedrock-agentcore` `invoke_agent_runtime` -- the same data-plane call
-Phase 2's own README documents for testing those agents, and the same
+those agents' own README documents for testing them, and the same
 mechanism the Terraform-created `asl-<agent>-invoke-<env>` IAM policies
 exist to authorize. boto3 handles SigV4 signing itself; this module doesn't
 need to hand-roll it the way `gateway_tool.py` does for the raw Gateway HTTP
-endpoint in Phase 2.
+endpoint.
 
-Phase 5: a delegated agent's tool call may pause on an interceptor
+A delegated agent's tool call may pause on an interceptor
 APPROVAL_REQUIRED/HITL_REQUIRED decision, surfaced by StrandsA2AExecutor as
-the real A2A task state `input-required` (confirmed against the installed
-a2a-sdk's own Task/TaskStatus JSON shape, not assumed -- see
-docs/phase-context/phase-5-context.md, "HITL resume mechanism"). This module
-now distinguishes that state from `completed`, and can resume a parked task
-by sending an `interruptResponse` DataPart on the same context/session --
-the same wire contract `strands.multiagent.a2a.executor` expects. Session
-affinity across the pause is provided by `runtimeSessionId` (a real,
-confirmed `invoke_agent_runtime` parameter -- checked directly against the
-botocore service model), which every call here now sets.
+the real A2A task state `input-required`. This module distinguishes that
+state from `completed`, and can resume a parked task by sending an
+`interruptResponse` DataPart on the same context/session -- the same wire
+contract `strands.multiagent.a2a.executor` expects. Session affinity
+across the pause is provided by `runtimeSessionId`, which every call here
+sets.
 """
 
 import json
@@ -35,15 +32,15 @@ from botocore.exceptions import BotoCoreError, ClientError
 logger = logging.getLogger(__name__)
 
 # Kept distinct from AWS_REGION, which the AgentCore Runtime platform
-# reserves for its own use (same reasoning Phase 2's gateway_tool.py already
+# reserves for its own use (same reasoning gateway_tool.py already
 # documents for GATEWAY_REGION).
 AGENT_REGION = os.environ.get("AGENT_REGION") or boto3.Session().region_name or "us-east-1"
 
 # Generous but bounded: a delegated agent call involves a Bedrock model
-# invocation plus a Gateway/MCP round trip (Phase 5: now potentially also an
-# Approval Agent round trip, itself possibly involving its own Bedrock model
+# invocation plus a Gateway/MCP round trip, and potentially also an
+# Approval Agent round trip (itself possibly involving its own Bedrock model
 # call for a semantic decision), so a low timeout would false-positive on
-# normal latency. No retry loop -- the brief asks for basic error handling,
+# normal latency. No retry loop -- basic error handling is the goal here,
 # not retry infrastructure.
 _CLIENT_CONFIG = Config(connect_timeout=10, read_timeout=60, retries={"max_attempts": 1})
 
@@ -108,11 +105,9 @@ def new_context_id(correlation_id: str) -> str:
 
 def new_runtime_session_id() -> str:
     """A fresh AgentCore Runtime session id. Long and random (well over
-    AgentCore's documented minimum length for this field) so a resume call
-    reaches the same running container/session that parked the interrupt --
-    the runtimeSessionId is what provides that affinity (confirmed via the
-    bedrock-agentcore botocore service model: InvokeAgentRuntime accepts
-    runtimeSessionId as "the identifier of the runtime session")."""
+    AgentCore's documented minimum length) so a resume call reaches the
+    same running container/session that parked the interrupt --
+    runtimeSessionId is what provides that affinity."""
     return f"asl-session-{uuid.uuid4()}"
 
 
@@ -211,7 +206,7 @@ def resume_delegated_agent(
     """Resume a task parked in input-required, on the exact same context and
     runtime session it paused on (required for the delegated agent's
     in-memory Strands Agent -- and its interrupt state -- to still be
-    there; see docs/phase-context/phase-5-context.md)."""
+    there)."""
     request_body = _build_a2a_request(
         question=None, context_id=context_id, task_id=task_id,
         interrupt_response={"interruptId": interrupt_id, "response": response},

@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY main.py deterministic.py semantic.py grants.py state.py ./
 
-# Same HTTP protocol contract as the Orchestrator (Phase 3): listen on
+# Same HTTP protocol contract as the Orchestrator: listen on
 # 0.0.0.0:8080 with POST /invocations and GET /ping, implemented by
 # BedrockAgentCoreApp.run() (called from main.py).
 EXPOSE 8080

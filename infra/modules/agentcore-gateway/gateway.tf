@@ -5,11 +5,11 @@ resource "aws_bedrockagentcore_gateway" "this" {
   authorizer_type = "AWS_IAM"
   protocol_type   = "MCP"
 
-  # Phase 4: REQUEST-only interceptor (see gateway-interceptor module).
-  # RESPONSE isn't configured -- Phase 4 scope is blocking before the MCP
-  # target runs, not response transformation/redaction. Confirmed against
-  # AWS docs that a gateway can carry one REQUEST + one RESPONSE
-  # interceptor at most (docs/phase-context/phase-4-context.md).
+  # REQUEST-only interceptor (see gateway-interceptor module). RESPONSE
+  # isn't configured -- the goal here is blocking before the MCP target
+  # runs, not response transformation/redaction. Confirmed against AWS docs
+  # that a gateway can carry one REQUEST + one RESPONSE interceptor at
+  # most.
   dynamic "interceptor_configuration" {
     for_each = var.enable_interceptor ? [1] : []
     content {

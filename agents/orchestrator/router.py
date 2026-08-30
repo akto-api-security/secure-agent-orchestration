@@ -1,9 +1,9 @@
-"""Deterministic keyword routing between the two Phase 2 delegated agents.
+"""Deterministic keyword routing between the two delegated agents.
 
-Uses substring matching against the domain lists from the Phase 3 brief
-rather than an LLM call: the routing surface is small and fixed, so a
-keyword match is cheaper, fully predictable, and easier to reason about than
-adding a model round trip (and the IAM/model permissions that would need).
+Uses substring matching against fixed domain lists rather than an LLM call:
+the routing surface is small and fixed, so a keyword match is cheaper,
+fully predictable, and easier to reason about than adding a model round
+trip (and the IAM/model permissions that would need).
 """
 
 import logging
@@ -18,9 +18,8 @@ class Domain(str, Enum):
     AGENTIC_SECURITY = "agentic_security"
 
 
-# Phrases taken directly from the Phase 3 brief's domain lists, plus
-# "prompt injection" (used in the brief's own routing examples for the
-# Agentic Security Agent even though it isn't in the bulleted domain list).
+# "prompt injection" is included even though it isn't a formal domain
+# keyword, since real routing examples for the Agentic Security Agent use it.
 API_SECURITY_KEYWORDS = [
     "api security",
     "dast",
@@ -59,9 +58,8 @@ def classify(question: str) -> RouteResult:
     if agentic_hits and not api_hits:
         return RouteResult(domain=Domain.AGENTIC_SECURITY, matched_keywords=agentic_hits)
 
-    # Neither matched, or both matched (genuinely ambiguous either way) --
-    # the brief's prescribed fallback is to ask the user to clarify rather
-    # than guess.
+    # Neither matched, or both matched -- genuinely ambiguous either way, so
+    # ask the user to clarify rather than guess.
     logger.info(
         "No unambiguous domain match (api_hits=%s, agentic_hits=%s)", api_hits, agentic_hits
     )

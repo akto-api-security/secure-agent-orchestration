@@ -2,10 +2,9 @@
 
 A grant binds a human's APPROVE decision to one specific tool call: the
 tool, its target, and a hash of its exact arguments. It is signed with an
-asymmetric AWS KMS key (ECC_NIST_P256, Sign/Verify -- confirmed current KMS
-API shape, not inferred) so the requesting agent -- which never has KMS
-sign permission -- cannot forge one (see IAM: only this service's execution
-role gets kms:Sign/kms:Verify on this key).
+asymmetric AWS KMS key (ECC_NIST_P256, Sign/Verify) so the requesting agent
+-- which never has KMS sign permission -- cannot forge one (see IAM: only
+this service's execution role gets kms:Sign/kms:Verify on this key).
 
 Grant format (a compact JSON string, so it fits in a single MCP tool-call
 argument value):
@@ -44,8 +43,8 @@ GRANT_KMS_KEY_ID = os.environ["GRANT_KMS_KEY_ID"]
 AWS_REGION = os.environ.get("AGENT_REGION") or boto3.Session().region_name or "us-east-1"
 SIGNING_ALGORITHM = "ECDSA_SHA_256"
 
-# Short-lived per the brief's explicit requirement ("the grant should be
-# short-lived ... do not create permanent authorization").
+# Deliberately short-lived: a grant must never become a permanent
+# authorization.
 GRANT_TTL_SECONDS = int(os.environ.get("GRANT_TTL_SECONDS", "300"))
 
 _kms = boto3.client("kms", region_name=AWS_REGION)

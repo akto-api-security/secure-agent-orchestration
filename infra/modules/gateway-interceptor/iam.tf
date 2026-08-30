@@ -18,8 +18,8 @@ resource "aws_iam_role" "interceptor" {
 
 data "aws_caller_identity" "current" {}
 
-# No DynamoDB/KMS/other state permissions -- Phase 4 scope is explicitly
-# stateless (see docs/phase-checklist.md "Do NOT implement yet"). Logs only.
+# No DynamoDB/KMS/other state permissions -- the interceptor is explicitly
+# stateless. Logs only.
 data "aws_iam_policy_document" "interceptor_logs" {
   statement {
     effect = "Allow"
@@ -40,13 +40,13 @@ resource "aws_iam_role_policy" "interceptor_logs" {
   policy = data.aws_iam_policy_document.interceptor_logs.json
 }
 
-# Phase 5: the interceptor's only new permission -- it calls the Approval
-# Agent for every OPA-allowed tools/call, but still holds no DynamoDB/KMS
-# access itself (that stays entirely inside the Approval Agent's own
-# execution role -- see docs/phase-context/phase-5-context.md, "IAM"). Both
-# ARN forms are granted, matching the pattern already confirmed necessary
-# for bedrock-agentcore:InvokeAgentRuntime elsewhere in this project (Phase
-# 3's orchestrator module).
+# The interceptor's only permission for calling out to another AgentCore
+# resource -- it calls the Approval Agent for every OPA-allowed tools/call,
+# but still holds no DynamoDB/KMS access itself (that stays entirely inside
+# the Approval Agent's own execution role). Both ARN forms are granted,
+# matching the pattern already confirmed necessary for
+# bedrock-agentcore:InvokeAgentRuntime elsewhere in this project (the
+# orchestrator module).
 data "aws_iam_policy_document" "invoke_approval_agent" {
   statement {
     effect = "Allow"

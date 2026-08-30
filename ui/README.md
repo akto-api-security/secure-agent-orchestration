@@ -1,16 +1,18 @@
 # Demo UI
 
-Phase 6 -- a small, non-production presentation layer over the already
-deployed and live-tested Phase 0-5 backend. FastAPI backend + vanilla
+A small, non-production presentation layer over the already
+deployed and live-tested backend. FastAPI backend + vanilla
 HTML/JS frontend, no framework. It calls only the Orchestrator and Approval
 Agent AgentCore Runtimes (`ui/backend/aws_clients.py`) -- it never talks to
 the Gateway or MCP directly, and it cannot bypass OPA or the Approval Agent
 (there is no code path here that does).
 
-`scripts/test_approval_flow.sh` / `scripts/test_hitl_flow.sh` /
-`scripts/demo_interactive.sh` (gitignored, internal-only) are unchanged and
-still the right tools for a scripted CLI demo or debugging -- this UI is an
-additional presentation layer, not a replacement.
+`scripts/demo_interactive.sh` (tracked, supported) is still a good
+CLI-based alternative for ad hoc questions. `scripts/test_approval_flow.sh`
+/ `scripts/test_hitl_flow.sh` (gitignored, internal-only, hardcode a
+specific deployment's own resource IDs) remain scripted debugging tools for
+the two fixed demo scenarios. This UI is an additional presentation layer,
+not a replacement for any of them.
 
 ## Run it
 
@@ -43,7 +45,7 @@ execution" verification panel (degrades to `UNKNOWN` without it, same as
 ## What "actual execution" means
 
 The agent's own final text is one thing; whether the real MCP tool actually
-ran is another (see `docs/architecture.md`, Phase 5's tool_name/execution
+ran is another (see `docs/architecture.md`, the Approval Agent's tool_name/execution
 verification). The "Actual execution" panel only appears once a tool name
 is known (an approval/HITL request) and reports one of:
 
@@ -69,4 +71,4 @@ It never guesses beyond those three states.
 | 7 | DAST denial | ...click DENY |
 | 8 | DAST additional instruction | ...enter instruction text, click SEND INSTRUCTION |
 | 9 | OPA ALLOW | Any of the above that isn't a malformed request -- OPA's baseline layer runs and allows on every real request (see `interceptor/policies/main.rego`) |
-| 10 | OPA BLOCK | Not reachable through a normal prompt today -- OPA's Phase 4 `sendFeedback`-block rule was intentionally removed in Phase 5 (that decision now belongs to the Approval Agent, see `docs/architecture.md`); OPA's only remaining behavior is fail-closed on a malformed/unsupported request, which this UI cannot construct through the Orchestrator's own input validation. Flagged here rather than faked. |
+| 10 | OPA BLOCK | Not reachable through a normal prompt today -- OPA's original `sendFeedback`-block rule was intentionally removed once that decision was moved to the Approval Agent (see `docs/architecture.md`); OPA's only remaining behavior is fail-closed on a malformed/unsupported request, which this UI cannot construct through the Orchestrator's own input validation. Flagged here rather than faked. |

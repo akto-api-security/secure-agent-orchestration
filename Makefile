@@ -9,7 +9,7 @@ bootstrap-init:
 bootstrap-apply:
 	cd infra/bootstrap && terraform apply
 
-# Phase 6: infra/environments/dev/backend.tf uses partial backend config
+# infra/environments/dev/backend.tf uses partial backend config
 # (see backend.hcl.example) -- scripts/bootstrap.sh generates the real
 # backend.hcl for you from infra/bootstrap's own output.
 dev-init:

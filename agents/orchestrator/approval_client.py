@@ -3,11 +3,11 @@
 Only ever calls the `get_decision` action -- the orchestrator (and, by
 extension, whoever is invoking it) can check what a human decided, but has
 no path here to `decide` on a human's behalf or read/construct a grant
-directly. That capability is deliberately not exposed by this module (see
-docs/phase-context/phase-5-context.md, "IAM" -- the orchestrator's execution
-role only grants InvokeAgentRuntime on the Approval Agent's runtime, and
-Terraform doesn't distinguish `get_decision` from `decide` at the IAM layer,
-but this module's own code never sends anything but get_decision).
+directly. That capability is deliberately not exposed by this module --
+the orchestrator's execution role only grants InvokeAgentRuntime on the
+Approval Agent's runtime, and Terraform doesn't distinguish `get_decision`
+from `decide` at the IAM layer, but this module's own code never sends
+anything but get_decision.
 """
 
 import json
