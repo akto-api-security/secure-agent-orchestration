@@ -29,7 +29,8 @@ venv/
 # Internal-only docs (not for client sharing)
 /docs/
 
-# Internal-only test scripts (invoke real AWS resources, not for client sharing)
+# Internal-only test scripts (hardcode this account's specific ARNs/runtime
+# IDs, invoke real AWS resources -- not for client sharing)
 /scripts/test_sendfeedback_block.sh
 /scripts/test_approval_flow.sh
 /scripts/test_hitl_flow.sh
