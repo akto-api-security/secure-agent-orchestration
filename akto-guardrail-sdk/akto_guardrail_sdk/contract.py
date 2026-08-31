@@ -21,7 +21,7 @@ ENDPOINT_PATH = "/api/http-proxy?guardrails=true&ingest_data=true"
 HTTP_METHOD = "GET"
 CONTEXT_SOURCE = "AGENTIC"
 SOURCE = "MIRRORING"
-TAG = json.dumps({"source": "AGENTIC"})
+TAG = json.dumps({"gen-ai": "Gen AI", "source": "AGENTIC"})
 
 # An MCP tool call has no real HTTP verb; "POST" is sent in the engine's
 # generic `method` field as the closest fit (an invoked action), rather

@@ -139,7 +139,8 @@ class _GatewayToolClient:
                 )
                 return {"toolUseId": tool_use_id, "status": "error", "content": [{"text": json.dumps(marker)}]}
 
-            message = error.get("message", error)
+            data = error.get("data") or {}
+            message = data.get("reason") or error.get("message", error)
             logger.info("Gateway/MCP returned an error for tool=%s: %s", self._namespaced_tool_name, message)
             return {"toolUseId": tool_use_id, "status": "error", "content": [{"text": str(message)}]}
 
