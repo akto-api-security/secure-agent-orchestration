@@ -174,11 +174,29 @@ def test_no_decision_is_ever_returned_on_any_failure_path():
 
 def test_config_requires_base_url():
     with pytest.raises(AktoGuardrailConfigError):
-        AktoGuardrailConfig(base_url="")
+        AktoGuardrailConfig(base_url="", api_key="k")
+
+
+def test_config_requires_api_key():
+    """A Guardrail Engine deployment that doesn't enforce auth will still
+    accept an unauthenticated request -- that's the deployment's own
+    policy, not something this SDK should decide by omission. Refusing to
+    build a client without a credential means a real, authenticated
+    deployment can never be called unauthenticated by accident."""
+    with pytest.raises(AktoGuardrailConfigError):
+        AktoGuardrailConfig(base_url="https://guardrail.example.invalid", api_key="")
 
 
 def test_config_from_env_requires_url(monkeypatch):
     monkeypatch.delenv("AKTO_GUARDRAIL_URL", raising=False)
+    monkeypatch.setenv("AKTO_GUARDRAIL_API_KEY", "fake-jwt")
+    with pytest.raises(AktoGuardrailConfigError):
+        AktoGuardrailConfig.from_env()
+
+
+def test_config_from_env_requires_api_key(monkeypatch):
+    monkeypatch.setenv("AKTO_GUARDRAIL_URL", "https://guardrail.example.invalid")
+    monkeypatch.delenv("AKTO_GUARDRAIL_API_KEY", raising=False)
     with pytest.raises(AktoGuardrailConfigError):
         AktoGuardrailConfig.from_env()
 
@@ -348,13 +366,9 @@ def test_api_key_sent_as_header_without_bearer_prefix():
     assert "super-secret-jwt" not in json.dumps(seen["body"])
 
 
-def test_no_api_key_means_no_auth_header():
-    seen = {}
-
-    def _transport(method, url, headers, body, timeout_seconds):
-        seen["headers"] = headers
-        return 200, json.dumps(_guardrails_response(True)).encode("utf-8")
-
-    client = AktoGuardrailClient(_config(api_key=None), transport=_transport)
-    client.evaluate(_context())
-    assert "Authorization" not in seen["headers"]
+def test_client_cannot_be_built_without_api_key():
+    """No config, no client, no request -- an unauthenticated call is not
+    constructible through this SDK at all, regardless of whether the
+    target deployment happens to accept one anyway."""
+    with pytest.raises(AktoGuardrailConfigError):
+        _config(api_key=None)

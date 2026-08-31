@@ -18,7 +18,13 @@ DEFAULT_API_KEY_HEADER = "Authorization"
 @dataclass(frozen=True)
 class AktoGuardrailConfig:
     base_url: str
-    api_key: Optional[str] = None
+    # Required. A Guardrail Engine deployment that doesn't enforce auth
+    # (e.g. a test instance) still accepts a request with no credential --
+    # that's the deployment's own policy, not something this SDK should
+    # decide on a caller's behalf. Refusing to build a client without one
+    # means a real, authenticated deployment can never be called
+    # unauthenticated by accident.
+    api_key: str
     api_key_header: str = DEFAULT_API_KEY_HEADER
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
     environment: Optional[str] = None
@@ -27,6 +33,8 @@ class AktoGuardrailConfig:
     def __post_init__(self):
         if not self.base_url:
             raise AktoGuardrailConfigError("AktoGuardrailConfig.base_url is required")
+        if not self.api_key:
+            raise AktoGuardrailConfigError("AktoGuardrailConfig.api_key is required")
         if self.timeout_seconds <= 0:
             raise AktoGuardrailConfigError("AktoGuardrailConfig.timeout_seconds must be > 0")
 
@@ -35,7 +43,7 @@ class AktoGuardrailConfig:
         """Build config from environment variables:
 
         - `<prefix>URL`              required — base URL of the Guardrail Engine.
-        - `<prefix>API_KEY`          optional — credential, sent as a header only.
+        - `<prefix>API_KEY`          required — credential, sent as a header only.
         - `<prefix>API_KEY_HEADER`   optional — overrides the header name. Defaults to `Authorization`.
         - `<prefix>TIMEOUT_SECONDS`  optional — default 5.
         - `<prefix>ENVIRONMENT`      optional — free-form identifier, for this SDK's own use only.
@@ -44,6 +52,10 @@ class AktoGuardrailConfig:
         base_url = os.environ.get(f"{prefix}URL")
         if not base_url:
             raise AktoGuardrailConfigError(f"{prefix}URL is required but not set")
+
+        api_key = os.environ.get(f"{prefix}API_KEY")
+        if not api_key:
+            raise AktoGuardrailConfigError(f"{prefix}API_KEY is required but not set")
 
         timeout_raw = os.environ.get(f"{prefix}TIMEOUT_SECONDS")
         try:
@@ -55,7 +67,7 @@ class AktoGuardrailConfig:
 
         return cls(
             base_url=base_url,
-            api_key=os.environ.get(f"{prefix}API_KEY") or None,
+            api_key=api_key,
             api_key_header=os.environ.get(f"{prefix}API_KEY_HEADER", DEFAULT_API_KEY_HEADER),
             timeout_seconds=timeout_seconds,
             environment=os.environ.get(f"{prefix}ENVIRONMENT") or None,

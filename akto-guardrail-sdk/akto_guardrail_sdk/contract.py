@@ -92,10 +92,14 @@ def build_request(request_context: RequestContext, config) -> Tuple[str, Dict[st
     if account_id:
         body["akto_account_id"] = account_id
 
-    headers = {"Content-Type": "application/json"}
-    if config.api_key:
-        headers[config.api_key_header] = config.api_key
-    headers[CORRELATION_ID_HEADER] = request_context.correlation_id
+    # config.api_key is required (AktoGuardrailConfig.__post_init__), so
+    # this header is always present -- no unauthenticated request is ever
+    # possible to build through this SDK.
+    headers = {
+        "Content-Type": "application/json",
+        config.api_key_header: config.api_key,
+        CORRELATION_ID_HEADER: request_context.correlation_id,
+    }
 
     return ENDPOINT_PATH, headers, json.dumps(body).encode("utf-8")
 

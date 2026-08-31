@@ -6,7 +6,7 @@ Engine deployment. Skipped by default. To run it:
     cd akto-guardrail-sdk
     AKTO_GUARDRAIL_REAL_INTEGRATION_TEST=1 \\
     AKTO_GUARDRAIL_URL=https://<deployment> \\
-    AKTO_GUARDRAIL_API_KEY=<credential, if that deployment requires one> \\
+    AKTO_GUARDRAIL_API_KEY=<credential> \\
     python3 -m pytest tests/test_real_guardrail_integration.py -v
 
 Do not point this at a production deployment — use a test/staging one.

@@ -61,7 +61,7 @@ config = AktoGuardrailConfig.from_env()  # reads AKTO_GUARDRAIL_* env vars
 # or construct directly:
 config = AktoGuardrailConfig(
     base_url="https://<your Guardrail Engine deployment>",
-    api_key="<your credential, if required>",
+    api_key="<your credential>",
     timeout_seconds=5,
 )
 ```
@@ -69,7 +69,7 @@ config = AktoGuardrailConfig(
 | Env var | Required | Default | Notes |
 |---|---|---|---|
 | `AKTO_GUARDRAIL_URL` | yes | — | Your Guardrail Engine deployment's base URL. |
-| `AKTO_GUARDRAIL_API_KEY` | no | none | Your credential, if your deployment requires one. Sent as a header only — never in the request body, never logged. |
+| `AKTO_GUARDRAIL_API_KEY` | **yes** | — | Your credential. Sent as a header only — never in the request body, never logged. Required even if your specific deployment doesn't currently enforce auth — a deployment's own auth policy isn't something this SDK should assume from the caller's side (see "Security considerations"). |
 | `AKTO_GUARDRAIL_API_KEY_HEADER` | no | `Authorization` | Override the header name the credential is sent in. |
 | `AKTO_GUARDRAIL_TIMEOUT_SECONDS` | no | `5` | Per-call HTTP timeout. |
 | `AKTO_GUARDRAIL_ENVIRONMENT` | no | none | Free-form identifier, for your own logging only. |
@@ -131,6 +131,12 @@ calls — a failed attempt raises immediately.
 
 - Credentials are read from configuration only, never hardcoded, never
   logged, and never placed in the request body.
+- **A credential is mandatory** — `AktoGuardrailConfig` refuses to build
+  without one, even though some Guardrail Engine deployments (e.g. a test
+  instance with auth disabled) will still accept a request with no
+  credential at all. Whether a given deployment enforces auth is that
+  deployment's own policy; this SDK never decides to send a request
+  without one on a caller's behalf.
 - `tool_arguments` is sent to your Guardrail Engine as-is. Don't pass
   secrets or credentials through it.
 - `AKTO_GUARDRAIL_API_KEY` is currently supplied as a plain environment
