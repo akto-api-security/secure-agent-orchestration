@@ -19,16 +19,27 @@ below.
 
 ## Installation
 
-Install directly from the private git repository (requires git access —
-you'll need to be added as a collaborator, or use an SSH deploy key):
+This repository is private. Install directly from git using a read-only
+access token we provide you (a fine-grained GitHub token scoped to just
+this repository, contents: read-only):
 
 ```bash
-pip install "git+https://github.com/vrushabh-akto/secure-agent-orchestration.git@<tag>#subdirectory=akto-guardrail-sdk"
+pip install "git+https://<TOKEN>@github.com/vrushabh-akto/secure-agent-orchestration.git@<tag>#subdirectory=akto-guardrail-sdk"
 ```
 
-Pin `<tag>` to a released version (e.g. `v0.1.0`) for reproducible installs.
-Add the same line to your `requirements.txt` / `pyproject.toml` dependency
-list to track it alongside your other dependencies.
+Pin `<tag>` to the released version we give you (e.g. `v0.1.0`) for
+reproducible installs.
+
+**Don't hardcode `<TOKEN>` in a committed file.** Pass it through an
+environment variable instead, e.g. in `requirements.txt`:
+
+```
+git+https://${AKTO_SDK_GIT_TOKEN}@github.com/vrushabh-akto/secure-agent-orchestration.git@<tag>#subdirectory=akto-guardrail-sdk
+```
+
+and set `AKTO_SDK_GIT_TOKEN` in your shell or CI secrets store before
+running `pip install -r requirements.txt`. This keeps the token out of
+shell history, `requirements.txt` diffs, and CI logs.
 
 ## Quick start
 
