@@ -19,8 +19,16 @@ below.
 
 ## Installation
 
-No `pip install` step is required. Copy `akto_guardrail_sdk/` into your
-project, or add this directory to your `PYTHONPATH`.
+Install directly from the private git repository (requires git access —
+you'll need to be added as a collaborator, or use an SSH deploy key):
+
+```bash
+pip install "git+https://github.com/vrushabh-akto/secure-agent-orchestration.git@<tag>#subdirectory=akto-guardrail-sdk"
+```
+
+Pin `<tag>` to a released version (e.g. `v0.1.0`) for reproducible installs.
+Add the same line to your `requirements.txt` / `pyproject.toml` dependency
+list to track it alongside your other dependencies.
 
 ## Quick start
 

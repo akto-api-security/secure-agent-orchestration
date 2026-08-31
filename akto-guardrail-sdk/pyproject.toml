@@ -1,0 +1,14 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "akto-guardrail-sdk"
+version = "0.1.0"
+description = "A lightweight, dependency-free Python client for the Akto Guardrail Engine."
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["akto_guardrail_sdk"]
