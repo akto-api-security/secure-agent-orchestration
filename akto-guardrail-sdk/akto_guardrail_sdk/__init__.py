@@ -10,7 +10,7 @@ See README.md for the full public interface.
 """
 
 from .client import AktoGuardrailClient
-from .config import AktoGuardrailConfig
+from .config import AktoGuardrailConfig, load_env_file
 from .exceptions import (
     AktoGuardrailAuthenticationError,
     AktoGuardrailConfigError,

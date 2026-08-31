@@ -15,6 +15,20 @@ DEFAULT_TIMEOUT_SECONDS = 5.0
 DEFAULT_API_KEY_HEADER = "Authorization"
 
 
+def load_env_file(path: str) -> None:
+    """Fill in any variable not already set in the environment, from a
+    plain KEY=VALUE file. A value already in the environment always wins."""
+    if not os.path.exists(path):
+        return
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            os.environ.setdefault(key.strip(), value.strip())
+
+
 @dataclass(frozen=True)
 class AktoGuardrailConfig:
     base_url: str

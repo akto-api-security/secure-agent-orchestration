@@ -21,6 +21,7 @@ from akto_guardrail_sdk import (  # noqa: E402
     AktoGuardrailTimeoutError,
     Decision,
     RequestContext,
+    load_env_file,
 )
 from akto_guardrail_sdk.contract import (
     CONTEXT_SOURCE,
@@ -372,3 +373,19 @@ def test_client_cannot_be_built_without_api_key():
     target deployment happens to accept one anyway."""
     with pytest.raises(AktoGuardrailConfigError):
         _config(api_key=None)
+
+
+def test_load_env_file_fills_in_missing_values_only(tmp_path, monkeypatch):
+    monkeypatch.delenv("SOME_NEW_VAR", raising=False)
+    monkeypatch.setenv("ALREADY_SET_VAR", "from-environment")
+    env_file = tmp_path / ".env.local"
+    env_file.write_text("# comment\nSOME_NEW_VAR=from-file\nALREADY_SET_VAR=should-not-win\n")
+
+    load_env_file(str(env_file))
+
+    assert os.environ["SOME_NEW_VAR"] == "from-file"
+    assert os.environ["ALREADY_SET_VAR"] == "from-environment"
+
+
+def test_load_env_file_missing_file_is_a_noop(tmp_path):
+    load_env_file(str(tmp_path / "does-not-exist.env"))  # must not raise
