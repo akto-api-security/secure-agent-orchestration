@@ -24,7 +24,7 @@ access token we provide you (a fine-grained GitHub token scoped to just
 this repository, contents: read-only):
 
 ```bash
-pip install "git+https://<TOKEN>@github.com/vrushabh-akto/secure-agent-orchestration.git@<tag>#subdirectory=akto-guardrail-sdk"
+pip install "git+https://<TOKEN>@github.com/akto-api-security/secure-agent-orchestration.git@<tag>#subdirectory=akto-guardrail-sdk"
 ```
 
 Pin `<tag>` to the released version we give you (e.g. `v0.1.0`) for
@@ -34,7 +34,7 @@ reproducible installs.
 environment variable instead, e.g. in `requirements.txt`:
 
 ```
-git+https://${AKTO_SDK_GIT_TOKEN}@github.com/vrushabh-akto/secure-agent-orchestration.git@<tag>#subdirectory=akto-guardrail-sdk
+git+https://${AKTO_SDK_GIT_TOKEN}@github.com/akto-api-security/secure-agent-orchestration.git@<tag>#subdirectory=akto-guardrail-sdk
 ```
 
 and set `AKTO_SDK_GIT_TOKEN` in your shell or CI secrets store before
