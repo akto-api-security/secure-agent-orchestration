@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Deploy Client -> HTTP Gateway -> Runtime -> MCP Gateway -> tools.
 # Usage: scripts/deploy.sh [image-tag]
+# Set AUTO_APPROVE=1 to skip the prompts and Terraform approvals.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,18 +13,15 @@ AGENT_DIR="$ROOT_DIR/agents/akto-demo-agent"
 VERSION="${1:-build-$(date -u +%Y%m%d%H%M%S)}"
 REGION="${AWS_REGION:-us-east-1}"
 
-if [ -f "$ROOT_DIR/.env" ]; then
-  set -a
-  # shellcheck disable=SC1091
-  source "$ROOT_DIR/.env"
-  set +a
-fi
-
 bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 confirm() {
+  [ -n "${AUTO_APPROVE:-}" ] && return 0
   read -r -p "$1 [y/N] " reply
   [[ "$reply" =~ ^[Yy]$ ]]
 }
+
+APPROVE_FLAG=()
+[ -n "${AUTO_APPROVE:-}" ] && APPROVE_FLAG=(-auto-approve)
 
 if [ ! -f "$TF_DIR/backend.hcl" ]; then
   BUCKET="$(terraform -chdir="$BOOTSTRAP_DIR" output -raw state_bucket_name 2>/dev/null || true)"
@@ -59,6 +57,7 @@ terraform -chdir="$TF_DIR" init -backend-config=backend.hcl
 bold "=== create ECR repository ==="
 terraform -chdir="$TF_DIR" apply \
   "${TF_VARS[@]}" \
+  "${APPROVE_FLAG[@]+"${APPROVE_FLAG[@]}"}" \
   -target=module.demo_agent.aws_ecr_repository.this
 
 REPO_URL="$(terraform -chdir="$TF_DIR" output -raw demo_agent_ecr_repository_url)"
@@ -73,7 +72,7 @@ aws ecr get-login-password --region "$REGION" | docker login --username AWS --pa
 docker buildx build --platform linux/arm64 -t "${REPO_URL}:${VERSION}" --push "$AGENT_DIR"
 
 bold "=== deploy complete topology ==="
-terraform -chdir="$TF_DIR" apply "${TF_VARS[@]}"
+terraform -chdir="$TF_DIR" apply "${TF_VARS[@]}" "${APPROVE_FLAG[@]+"${APPROVE_FLAG[@]}"}"
 
 bold "=== done ==="
 echo "HTTP Gateway:  $(terraform -chdir="$TF_DIR" output -raw http_gateway_url)"

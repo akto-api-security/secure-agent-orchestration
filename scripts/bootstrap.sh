@@ -22,9 +22,13 @@ PROJECT_NAME="${2:-agentcore-gateway-demo}"
 
 bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 confirm() {
+  [ -n "${AUTO_APPROVE:-}" ] && return 0
   read -r -p "$1 [y/N] " reply
   [[ "$reply" =~ ^[Yy]$ ]]
 }
+
+APPROVE_FLAG=()
+[ -n "${AUTO_APPROVE:-}" ] && APPROVE_FLAG=(-auto-approve)
 
 bold "=== Step 1: Terraform state backend (infra/bootstrap) ==="
 echo "This will create one S3 bucket in region $AWS_REGION to hold this"
@@ -38,7 +42,9 @@ if ! confirm "Run 'terraform init && terraform apply' in $BOOTSTRAP_DIR now?"; t
   exit 0
 fi
 
-(cd "$BOOTSTRAP_DIR" && terraform init && terraform apply -var="aws_region=$AWS_REGION" -var="project_name=$PROJECT_NAME")
+(cd "$BOOTSTRAP_DIR" && terraform init && terraform apply \
+  "${APPROVE_FLAG[@]+"${APPROVE_FLAG[@]}"}" \
+  -var="aws_region=$AWS_REGION" -var="project_name=$PROJECT_NAME")
 
 STATE_BUCKET="$(cd "$BOOTSTRAP_DIR" && terraform output -raw state_bucket_name)"
 if [ -z "$STATE_BUCKET" ]; then
