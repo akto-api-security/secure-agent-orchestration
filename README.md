@@ -88,6 +88,23 @@ scripts/smoke-test.sh
 The test asks a documentation question that makes the Runtime use an MCP
 tool, exercising the complete path.
 
+To exercise the MCP Gateway on its own, without the agent deciding whether to
+call a tool:
+
+```bash
+scripts/mcp-call.py list
+scripts/mcp-call.py call searchDocumentation '{"query": "BOLA"}'
+```
+
+Confirm the Runtime cannot be reached directly. This must fail with an explicit
+deny:
+
+```bash
+aws bedrock-agentcore invoke-agent-runtime \
+  --agent-runtime-arn "$(terraform -chdir=infra/environments/akto-demo output -raw demo_agent_runtime_arn)" \
+  --payload fileb:///dev/stdin --region us-east-1 /tmp/out.json <<< '{"prompt":"hi"}'
+```
+
 ## Install Akto interceptors
 
 After deployment, get the two Gateway IDs:
@@ -106,6 +123,32 @@ Attach REQUEST and RESPONSE interception to both Gateways:
 
 Run `scripts/smoke-test.sh` again after installation to verify the guarded
 end-to-end path.
+
+## Verify guardrails
+
+Guardrail policies live in the Akto dashboard under **Settings → Guardrails**;
+this repository does not configure them. Watch the decisions while testing:
+
+```bash
+aws logs tail /aws/lambda/akto-guardrails-interceptor --region us-east-1 --follow
+```
+
+Each decision is logged as `Guardrailing ...` followed by the parsed verdict, so
+a block by policy is distinguishable from a fail-closed error.
+
+| Case | Command | Expected |
+| --- | --- | --- |
+| Agent allowed | `scripts/invoke.sh "What is BOLA?"` | `status: success` |
+| Agent blocked | `scripts/invoke.sh "My SSN is 123-45-6789"` | HTTP 403, Runtime never invoked |
+| Tool call allowed | `scripts/mcp-call.py call searchDocumentation '{"query":"BOLA"}'` | JSON-RPC result |
+| Tool call blocked | `scripts/mcp-call.py call searchDocumentation '{"query":"SSN 123-45-6789"}'` | `Tool request blocked by Akto policy` |
+| Tool result blocked | Query whose result contains PII | `Tool result blocked by Akto policy` |
+
+Human-in-the-loop needs a policy whose behaviour is **human approval**. The
+interceptor holds the call and polls Akto for up to `AKTO_APPROVAL_WAIT_SECONDS`
+(default 840, Lambda timeout 900), so use a client timeout above 15 minutes and
+approve or deny in the Akto dashboard while the call is open. With no decision
+in the window the call fails closed unless `AKTO_FAIL_OPEN=true`.
 
 ## Destroy
 
