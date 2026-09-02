@@ -18,15 +18,6 @@ output "gateway_role_arn" {
   value       = aws_iam_role.gateway.arn
 }
 
-output "invoke_policy_arn" {
-  description = <<-EOT
-    ARN of the IAM policy granting bedrock-agentcore:InvokeGateway on this
-    gateway. Attach it to whichever IAM identity you'll use to test
-    tools/list and tools/call (not attached automatically).
-  EOT
-  value       = aws_iam_policy.invoke_gateway.arn
-}
-
 output "target_ids" {
   description = "Gateway target IDs, keyed by target name."
   value = {

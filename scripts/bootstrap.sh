@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Step 1 of a fresh customer deployment: create the Terraform
 # state backend (infra/bootstrap) and generate the partial backend config
-# infra/environments/dev needs (see infra/environments/dev/backend.tf,
+# infra/environments/akto-demo needs,
 # which deliberately has no literal bucket/region -- Terraform backend
 # blocks can never reference variables, so this is supplied at `terraform
 # init` time instead).
@@ -15,10 +15,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BOOTSTRAP_DIR="$SCRIPT_DIR/../infra/bootstrap"
-DEV_DIR="$SCRIPT_DIR/../infra/environments/dev"
+ENV_DIR="$SCRIPT_DIR/../infra/environments/akto-demo"
 
 AWS_REGION="${1:-us-east-1}"
-PROJECT_NAME="${2:-agent-security-lab}"
+PROJECT_NAME="${2:-agentcore-gateway-demo}"
 
 bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 confirm() {
@@ -46,16 +46,16 @@ if [ -z "$STATE_BUCKET" ]; then
   exit 1
 fi
 
-bold "=== Step 2: generate infra/environments/dev/backend.hcl ==="
-cat > "$DEV_DIR/backend.hcl" <<EOF
+bold "=== Step 2: generate environment backend.hcl ==="
+cat > "$ENV_DIR/backend.hcl" <<EOF
 bucket = "$STATE_BUCKET"
 region = "$AWS_REGION"
 EOF
-echo "Wrote $DEV_DIR/backend.hcl (gitignored -- account-specific, not shared)."
+echo "Wrote $ENV_DIR/backend.hcl (gitignored -- account-specific, not shared)."
 
 bold "=== Next step ==="
-echo "Initialize the dev environment against this backend:"
-echo "  cd $DEV_DIR && terraform init -backend-config=backend.hcl"
+echo "Initialize the deployment environment against this backend:"
+echo "  cd $ENV_DIR && terraform init -backend-config=backend.hcl"
 echo
 echo "(If this re-points an existing environment at the same bucket/key,"
 echo "add -reconfigure -- it won't move or touch any state.)"

@@ -1,27 +1,23 @@
 #!/usr/bin/env bash
-# Consolidated deploy -- runs README.md's Steps 6-10 in one go: terraform
-# init, create the 4 ECR repos, build+push all 4 images, deploy everything
-# else, then verify.
-#
-# Assumes infra/bootstrap has already been run (scripts/bootstrap.sh) and
-# infra/environments/dev/backend.hcl exists -- this script does NOT create
-# the state backend itself. That's a rarer, one-time, separate step (same
-# reasoning as scripts/destroy.sh keeping backend removal separate).
-#
-# Every terraform apply below still runs interactively (no -auto-approve),
-# so you see and approve each real plan yourself -- this script only
-# chains the commands, it doesn't remove your review of what changes.
-#
-# Usage: scripts/deploy.sh [version]
-#   version defaults to the current git short SHA (same default
-#   scripts/build-and-push.sh uses).
+# Deploy Client -> HTTP Gateway -> Runtime -> MCP Gateway -> tools.
+# Usage: scripts/deploy.sh [image-tag]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$SCRIPT_DIR/.."
-TF_DIR="$ROOT_DIR/infra/environments/dev"
+TF_DIR="$ROOT_DIR/infra/environments/akto-demo"
+BOOTSTRAP_DIR="$ROOT_DIR/infra/bootstrap"
+AGENT_DIR="$ROOT_DIR/agents/akto-demo-agent"
 
-VERSION="${1:-$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo "manual-$(date +%Y%m%d%H%M%S)")}"
+VERSION="${1:-build-$(date -u +%Y%m%d%H%M%S)}"
+REGION="${AWS_REGION:-us-east-1}"
+
+if [ -f "$ROOT_DIR/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$ROOT_DIR/.env"
+  set +a
+fi
 
 bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 confirm() {
@@ -30,16 +26,26 @@ confirm() {
 }
 
 if [ ! -f "$TF_DIR/backend.hcl" ]; then
-  echo "No $TF_DIR/backend.hcl found -- run scripts/bootstrap.sh first (creates the Terraform state backend)." >&2
-  exit 1
+  BUCKET="$(terraform -chdir="$BOOTSTRAP_DIR" output -raw state_bucket_name 2>/dev/null || true)"
+  if [ -z "$BUCKET" ]; then
+    echo "No Terraform state backend found. Run scripts/bootstrap.sh first." >&2
+    exit 1
+  fi
+  cat > "$TF_DIR/backend.hcl" <<EOF
+bucket = "$BUCKET"
+region = "$REGION"
+EOF
+  echo "Wrote $TF_DIR/backend.hcl."
 fi
 
-bold "=== This will deploy the full stack into infra/environments/dev, version=$VERSION ==="
-echo "That's: 4 ECR repos, 4 AgentCore Runtimes (Orchestrator, API/Agentic"
-echo "Security Agents, Approval Agent), the Gateway, the interceptor Lambda,"
-echo "a DynamoDB table, a KMS key, and all IAM roles/policies. Each"
-echo "terraform apply below shows its own plan and asks for its own"
-echo "confirmation too."
+TF_VARS=(
+  -var="image_tag=${VERSION}"
+  -var="aws_region=${REGION}"
+)
+
+bold "=== AgentCore topology deploy, image=$VERSION ==="
+echo "Creates one HTTP Gateway, one Runtime, one MCP Gateway, two MCP targets,"
+echo "the Runtime image repository, and least-privilege IAM."
 echo
 
 if ! confirm "Continue?"; then
@@ -47,24 +53,35 @@ if ! confirm "Continue?"; then
   exit 0
 fi
 
-bold "=== Step 1/4: terraform init ==="
-(cd "$TF_DIR" && terraform init -backend-config=backend.hcl)
+bold "=== terraform init ==="
+terraform -chdir="$TF_DIR" init -backend-config=backend.hcl
 
-bold "=== Step 2/4: create the 4 ECR repositories ==="
-(cd "$TF_DIR" && terraform apply \
-  -target=module.orchestrator.aws_ecr_repository.this \
-  -target=module.api_security_agent.aws_ecr_repository.this \
-  -target=module.agentic_security_agent.aws_ecr_repository.this \
-  -target=module.approval_agent.aws_ecr_repository.this)
+bold "=== create ECR repository ==="
+terraform -chdir="$TF_DIR" apply \
+  "${TF_VARS[@]}" \
+  -target=module.demo_agent.aws_ecr_repository.this
 
-bold "=== Step 3/4: build and push all 4 images (version=$VERSION) ==="
-"$SCRIPT_DIR/build-and-push.sh" "$VERSION"
+REPO_URL="$(terraform -chdir="$TF_DIR" output -raw demo_agent_ecr_repository_url)"
+if [ -z "$REPO_URL" ]; then
+  echo "Could not read demo_agent_ecr_repository_url." >&2
+  exit 1
+fi
 
-bold "=== Step 4/4: deploy everything else ==="
-(cd "$TF_DIR" && terraform apply -var="image_tag=$VERSION")
+REGISTRY="${REPO_URL%%/*}"
+bold "=== build and push $REPO_URL:$VERSION ==="
+aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$REGISTRY"
+docker buildx build --platform linux/arm64 -t "${REPO_URL}:${VERSION}" --push "$AGENT_DIR"
 
-bold "=== Verifying ==="
-"$SCRIPT_DIR/verify.sh"
+bold "=== deploy complete topology ==="
+terraform -chdir="$TF_DIR" apply "${TF_VARS[@]}"
 
-bold "=== Done ==="
-echo "Run scripts/start-demo.sh whenever you're ready to try the UI."
+bold "=== done ==="
+echo "HTTP Gateway:  $(terraform -chdir="$TF_DIR" output -raw http_gateway_url)"
+echo "HTTP target:   $(terraform -chdir="$TF_DIR" output -raw http_gateway_target_name)"
+echo "Agent Runtime: $(terraform -chdir="$TF_DIR" output -raw demo_agent_runtime_arn)"
+echo "MCP Gateway:   $(terraform -chdir="$TF_DIR" output -raw mcp_gateway_url)"
+echo
+echo "Ask it:"
+echo "  scripts/invoke.sh \"What does API security testing cover?\""
+echo "Smoke test:"
+echo "  scripts/smoke-test.sh"

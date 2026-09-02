@@ -31,20 +31,7 @@ venv/
 .mypy_cache/
 .ruff_cache/
 
-# Internal-only docs (not for client sharing)
-/docs/
-
-# Internal-only test scripts (hardcode this account's specific ARNs/runtime
-# IDs, invoke real AWS resources -- not for client sharing)
-/scripts/test_sendfeedback_block.sh
-/scripts/test_approval_flow.sh
-/scripts/test_hitl_flow.sh
-/scripts/approval_decide.py
-
 # OS / editor
 .DS_Store
 .idea/
 .vscode/
-
-# Claude Code harness working files (not project content)
-.claude/

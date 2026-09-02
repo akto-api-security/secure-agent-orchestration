@@ -7,5 +7,5 @@ variable "aws_region" {
 variable "project_name" {
   description = "Project name, used as a resource-naming prefix."
   type        = string
-  default     = "agent-security-lab"
+  default     = "agentcore-gateway-demo"
 }

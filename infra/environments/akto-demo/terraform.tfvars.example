@@ -1,0 +1,6 @@
+aws_region   = "us-east-1"
+project_name = "agentcore-gateway-demo"
+environment  = "demo"
+
+# This becomes /demo-agent/invocations on the outer HTTP Gateway.
+http_target_name = "demo-agent"

@@ -15,7 +15,7 @@ variable "aws_region" {
 
 variable "agent_key" {
   description = <<-EOT
-    Short, hyphenated identifier for this agent (e.g. "api-security-agent").
+    Short, hyphenated identifier for this agent (for example, "demo-agent").
     Used to derive the ECR repository name and IAM role/policy names, which
     allow hyphens (unlike agent_runtime_name, see below).
   EOT
@@ -72,6 +72,17 @@ variable "model_id" {
   description = "Bedrock model id (or cross-region inference profile id) the agent uses for reasoning."
   type        = string
   default     = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+}
+
+variable "server_protocol" {
+  description = "AgentCore Runtime inbound protocol."
+  type        = string
+  default     = "A2A"
+
+  validation {
+    condition     = contains(["A2A", "HTTP", "MCP"], var.server_protocol)
+    error_message = "server_protocol must be A2A, HTTP, or MCP."
+  }
 }
 
 variable "tags" {

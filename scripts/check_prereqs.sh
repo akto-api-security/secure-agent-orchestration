@@ -15,11 +15,13 @@ check() {
 check "AWS CLI" aws
 check "Terraform" terraform
 check "Python 3" python3
+check "Docker" docker
 
 if [ "$fail" -eq 0 ]; then
   echo "aws:        $(aws --version 2>&1)"
   echo "terraform:  $(terraform version | head -n1)"
   echo "python3:    $(python3 --version)"
+  echo "docker:     $(docker --version)"
 fi
 
 echo
