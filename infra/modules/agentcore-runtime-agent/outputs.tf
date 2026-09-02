@@ -17,13 +17,3 @@ output "ecr_repository_url" {
   description = "URL of the ECR repository this agent's container image must be pushed to."
   value       = aws_ecr_repository.this.repository_url
 }
-
-output "invoke_policy_arn" {
-  description = <<-EOT
-    ARN of the IAM policy granting bedrock-agentcore:InvokeAgentRuntime and
-    bedrock-agentcore:GetAgentCard on this agent. Attach it to whichever IAM
-    identity you'll use to test the agent's A2A interface (not attached
-    automatically).
-  EOT
-  value       = aws_iam_policy.invoke_agent.arn
-}

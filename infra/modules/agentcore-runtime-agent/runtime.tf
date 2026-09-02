@@ -1,14 +1,5 @@
-# No authorizer_configuration block: omitting it leaves inbound A2A
-# authorization on AWS_IAM (SigV4) rather than requiring a CUSTOM_JWT
-# authorizer, which would mean standing up Cognito. This mirrors the
-# Gateway's own inbound-auth decision and its reasoning (reuse the AWS
-# identities already in use, avoid Cognito infrastructure with no other
-# consumer, and stay directly testable with SigV4-signed requests).
-#
-# authorizer_configuration only configures a *JWT* authorizer per the
-# provider schema; AWS's A2A protocol-contract docs describe SigV4 as a
-# first-class, non-JWT auth mode with its own 403 response shape for
-# "SigV4-configured agents".
+# Omitting authorizer_configuration leaves inbound Runtime authorization on
+# AWS IAM. The outer Gateway signs Runtime requests with its service role.
 resource "aws_bedrockagentcore_agent_runtime" "this" {
   agent_runtime_name = var.agent_runtime_name
   description        = var.description
@@ -32,7 +23,7 @@ resource "aws_bedrockagentcore_agent_runtime" "this" {
   }
 
   protocol_configuration {
-    server_protocol = "A2A"
+    server_protocol = var.server_protocol
   }
 
   tags = var.tags

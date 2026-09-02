@@ -160,28 +160,3 @@ resource "aws_iam_role_policy" "execution" {
   role   = aws_iam_role.execution.id
   policy = data.aws_iam_policy_document.execution.json
 }
-
-# Standalone policy (not auto-attached to anything), mirroring
-# asl-gateway-invoke-dev: grants the two actions needed to
-# directly test this agent's A2A interface over SigV4 -- InvokeAgentRuntime
-# to send a task, GetAgentCard to fetch its agent card (a separately
-# grantable action; InvokeAgentRuntime alone does not cover it). Attach it
-# manually to whichever IAM identity you test with.
-data "aws_iam_policy_document" "invoke_agent" {
-  statement {
-    sid    = "AllowAgentRuntimeInvocation"
-    effect = "Allow"
-    actions = [
-      "bedrock-agentcore:InvokeAgentRuntime",
-      "bedrock-agentcore:GetAgentCard",
-    ]
-    resources = [aws_bedrockagentcore_agent_runtime.this.agent_runtime_arn]
-  }
-}
-
-resource "aws_iam_policy" "invoke_agent" {
-  name        = "asl-${var.agent_key}-invoke-${var.environment}"
-  description = "Allows invoking the asl-${var.agent_key}-${var.environment} AgentCore Runtime agent over A2A (message/send, agent-card fetch)."
-  policy      = data.aws_iam_policy_document.invoke_agent.json
-  tags        = var.tags
-}

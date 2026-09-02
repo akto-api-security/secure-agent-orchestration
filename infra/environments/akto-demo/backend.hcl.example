@@ -1,0 +1,6 @@
+# Copy to backend.hcl (gitignored), or let scripts/bootstrap.sh create it.
+#
+#   terraform init -backend-config=backend.hcl
+
+bucket = "agentcore-gateway-demo-tfstate-<ACCOUNT_ID>"
+region = "us-east-1"
