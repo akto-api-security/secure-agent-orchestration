@@ -39,7 +39,7 @@ def _gateway_url() -> str:
 
 
 def _credentials() -> dict:
-    return json.loads(_run(["aws", "configure", "export-credentials", "--format", "json"]))
+    return json.loads(_run(["aws", "configure", "export-credentials", "--format", "process"]))
 
 
 def _sign(key: bytes, message: str) -> bytes:
