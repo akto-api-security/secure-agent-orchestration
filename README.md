@@ -16,7 +16,7 @@ role. Clients therefore cannot bypass the outer Gateway.
 
 Akto interceptors are intentionally not bundled here. Deploy the topology
 first, then follow the
-[Akto Bedrock AgentCore connector guide](https://docs.akto.io/akto-argus-agentic-ai-security-for-homegrown-ai/connectors/ai-agent-security/aws-bedrock-agentcore)
+[Akto Bedrock AgentCore connector guide](https://ai-security-docs.akto.io/akto-argus-agentic-ai-security-for-homegrown-ai/connectors/ai-agent-security/aws-bedrock-agentcore)
 to attach Akto to the HTTP and MCP Gateways.
 
 ## Prerequisites
@@ -115,7 +115,7 @@ terraform -chdir=infra/environments/akto-demo output -raw mcp_gateway_id
 ```
 
 Use those IDs in the
-[Akto Bedrock AgentCore connector guide](https://docs.akto.io/akto-argus-agentic-ai-security-for-homegrown-ai/connectors/ai-agent-security/aws-bedrock-agentcore).
+[Akto Bedrock AgentCore connector guide](https://ai-security-docs.akto.io/akto-argus-agentic-ai-security-for-homegrown-ai/connectors/ai-agent-security/aws-bedrock-agentcore).
 Attach REQUEST and RESPONSE interception to both Gateways:
 
 - HTTP Gateway: guards user prompts and final agent responses.
