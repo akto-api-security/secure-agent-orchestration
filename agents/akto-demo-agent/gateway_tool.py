@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 GATEWAY_URL = os.environ["GATEWAY_URL"]
 GATEWAY_REGION = os.environ.get("GATEWAY_REGION") or boto3.Session().region_name or "us-east-1"
 TARGET_PREFIX = os.environ.get("MCP_TARGET_PREFIX", "")
+MCP_PROTOCOL_VERSION = "2025-11-25"
 
 _request_ids = itertools.count(1)
 _discovered_tools: list[MCPAgentTool] | None = None
@@ -33,7 +34,10 @@ def _sigv4_post(payload: dict) -> dict:
         method="POST",
         url=GATEWAY_URL,
         data=body,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
+        },
     )
     credentials = boto3.Session().get_credentials()
     SigV4Auth(credentials, "bedrock-agentcore", GATEWAY_REGION).add_auth(request)

@@ -302,6 +302,14 @@ Environment variables:
 
 Create it and copy the **Runtime ARN**.
 
+> **If you skipped the environment variables (or need to change them
+> later):** open **Bedrock AgentCore** → **Agent Runtimes** →
+> `asl_demo_agent_demo` → **Edit**, add the four key/value pairs from the
+> table above under **Environment variables**, and save. Without
+> `GATEWAY_URL` set, the container crashes on startup with
+> `KeyError: 'GATEWAY_URL'` (visible in the runtime's CloudWatch logs)
+> and every invocation fails with `RuntimeClientError`.
+
 ## 7. HTTP Gateway service role
 
 **IAM** → **Create role** → **Custom trust policy**. The `SourceArn`
@@ -393,12 +401,13 @@ Two policies. The first is what makes the guardrail path
 non-bypassable; without it, anyone holding `InvokeAgentRuntime` can skip
 the gateway.
 
-**9a. Runtime resource policy.** The console does not expose resource
-policies for AgentCore Runtimes, so use the CLI. Replace both placeholders,
-then:
+**9a. Runtime resource policy.** This can be set from the console: open
+**Bedrock AgentCore** → **Agent Runtimes** → `asl_demo_agent_demo`, scroll
+to the **Resource-based policy** section, and click **Edit**. Replace both
+placeholders in the statement below, then paste the whole policy into the
+JSON editor:
 
-```bash
-cat > /tmp/runtime-policy.json <<'EOF'
+```json
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -423,16 +432,11 @@ cat > /tmp/runtime-policy.json <<'EOF'
     }
   ]
 }
-EOF
-
-aws bedrock-agentcore-control put-resource-policy \
-  --resource-arn "<RUNTIME_ARN>" \
-  --policy "file:///tmp/runtime-policy.json" \
-  --region us-east-1
 ```
 
-**9b. Caller policy.** **IAM** → **Policies** → **Create policy** → **JSON**,
-named `asl-http-gateway-invoke-demo`:
+**9b. Caller policy.** Open **Bedrock AgentCore** → **Gateways** →
+`asl-http-gateway-demo`, scroll to the **Resource-based policy** section,
+click **Edit**, replace the placeholder, and paste:
 
 ```json
 {
@@ -441,14 +445,14 @@ named `asl-http-gateway-invoke-demo`:
     {
       "Sid": "InvokeHttpGateway",
       "Effect": "Allow",
-      "Action": "bedrock-agentcore:InvokeGateway",
-      "Resource": "<HTTP_GATEWAY_ARN>"
+      "Principal": {
+        "AWS": "arn:aws:iam::<ACCOUNT_ID>:root"
+      },
+      "Action": "bedrock-agentcore:InvokeGateway"
     }
   ]
 }
 ```
-
-Attach it to the user or role that will call the agent.
 
 ## 10. Verify
 
