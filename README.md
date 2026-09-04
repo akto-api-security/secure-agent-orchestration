@@ -57,6 +57,13 @@ scripts/check_prereqs.sh
    scripts/deploy.sh
    ```
 
+Two alternatives to the scripts:
+
+- [docs/manual-deployment.md](docs/manual-deployment.md) — the same Terraform
+  sequence, command by command.
+- [docs/console-deployment.md](docs/console-deployment.md) — building the whole
+  topology by hand in the AWS Console, with every IAM policy written out.
+
 The deploy script shows every Terraform plan for approval. It first creates
 the ECR repository, builds and pushes the Runtime image for `linux/arm64`,
 then creates both Gateways, the Runtime, MCP targets, and IAM policies.
