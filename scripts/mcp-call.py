@@ -24,6 +24,7 @@ SERVICE = "bedrock-agentcore"
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 TARGET_PREFIX = os.environ.get("MCP_TARGET_PREFIX", "mac-akto-api-mcp")
 TIMEOUT_SECONDS = int(os.environ.get("MCP_TIMEOUT_SECONDS", "900"))
+MCP_PROTOCOL_VERSION = "2025-11-25"
 TF_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "infra", "environments", "akto-demo")
 
 
@@ -56,6 +57,7 @@ def _signed_headers(url: str, body: str, credentials: dict) -> dict:
     headers = {
         "content-type": "application/json",
         "host": parsed.netloc,
+        "mcp-protocol-version": MCP_PROTOCOL_VERSION,
         "x-amz-date": amz_date,
     }
     token = credentials.get("SessionToken")
