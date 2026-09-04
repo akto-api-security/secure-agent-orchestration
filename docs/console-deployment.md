@@ -13,10 +13,11 @@ throughout.
 Two things genuinely cannot be done in the console, and both are called out
 where they occur:
 
-- **Building and pushing the container image.** There is no console image
-builder; you need Docker locally (step 2) or a CodeBuild project.
+- **Building a container image.** There is no console image builder if you
+  choose ECR (step 2 option A). The zip path needs no build: use
+  `agents/akto-demo-agent/deployment_package.zip` from this repo.
 - **Invoking the agent.** AgentCore Gateways have no console "test" button,
-so verification in step 9 uses the AWS CLI.
+  so verification in step 9 uses the AWS CLI.
 
 Console labels shift between AWS releases. Where a label may differ, the
 underlying API field name is given in parentheses.
@@ -29,7 +30,7 @@ Build in this order; each step needs an ARN from the previous one.
 | #   | Resource                                | Name                                         |
 | --- | --------------------------------------- | -------------------------------------------- |
 | 1   | Bedrock model access                    | Claude Haiku 4.5                             |
-| 2   | ECR repository + image                  | `asl-demo-agent-demo`                        |
+| 2   | Agent artifact                          | ECR image, **or** zip in this repo           |
 | 3   | MCP Gateway role                        | `asl-gateway-service-role-demo`              |
 | 4   | MCP Gateway + 2 targets                 | `asl-gateway-demo`                           |
 | 5   | Runtime execution role                  | `asl-demo-agent-execution-demo`              |
@@ -47,7 +48,11 @@ Build in this order; each step needs an ARN from the previous one.
 **Anthropic Claude Haiku 4.5** and submit. The agent uses inference profile
 `us.anthropic.claude-haiku-4-5-20251001-v1:0`.
 
-## 2. ECR repository and image
+## 2. Agent artifact (ECR image **or** zip)
+
+Pick one. Step 6 must use the same choice. Skip the other path.
+
+### Option A — ECR container
 
 **Amazon ECR** → **Repositories** → **Create repository**.
 
@@ -74,6 +79,43 @@ docker buildx build --platform linux/arm64 \
 
 Because the repository is immutable, every deploy needs a new tag. Copy the
 full `…:${IMAGE_TAG}` URI; step 6 needs it.
+
+### Option B — Zip (direct code deploy)
+
+Use the zip already in this repo. It is Linux arm64 / Python 3.12, has
+`main.py` at the root, and is account-independent:
+
+```text
+agents/akto-demo-agent/deployment_package.zip
+```
+
+In step 6, **Host agent** → **Local upload** and select that file. Runtime
+**Python 3.12**, entry point `main.py`. You do not need S3, Docker, or a
+rebuild.
+
+S3 is optional. Only use it if the console forces an S3 source, or you
+prefer not to upload from the browser. Then put this same file in a bucket
+in `us-east-1` and grant `s3:GetObject` to the execution role and to the
+IAM identity signed into the console:
+
+```bash
+export AWS_REGION=us-east-1
+export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+export BUCKET="asl-demo-agent-code-${ACCOUNT_ID}-${AWS_REGION}"
+export ZIP_KEY="asl-demo-agent-demo/deployment_package.zip"
+
+aws s3api create-bucket --bucket "$BUCKET" --region "$AWS_REGION"
+aws s3api put-public-access-block \
+  --bucket "$BUCKET" \
+  --public-access-block-configuration \
+    BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+aws s3 cp agents/akto-demo-agent/deployment_package.zip \
+  "s3://${BUCKET}/${ZIP_KEY}" --region "$AWS_REGION"
+```
+
+Rebuilding the zip is optional (only if you change agent code). See
+[docs/manual-deployment.md](manual-deployment.md) Option B, “Optional —
+rebuild the zip”.
 
 ## 3. MCP Gateway service role
 
@@ -274,6 +316,19 @@ from step 4:
 }
 ```
 
+If you chose **S3 zip in step 2**, keep the statements above and add this
+one as well. You can drop `ECRImageAccess` and `ECRTokenAccess` if the
+Runtime will never pull an image:
+
+```json
+{
+  "Sid": "S3CodeAccess",
+  "Effect": "Allow",
+  "Action": ["s3:GetObject", "s3:GetObjectVersion"],
+  "Resource": "arn:aws:s3:::asl-demo-agent-code-<ACCOUNT_ID>-us-east-1/asl-demo-agent-demo/deployment_package.zip"
+}
+```
+
 
 
 ## 6. AgentCore Runtime
@@ -281,8 +336,18 @@ from step 4:
 **Bedrock AgentCore** → **Agent Runtimes** → **Host agent** / **Create**.
 
 - Name (`agentRuntimeName`): `asl_demo_agent_demo` — letters, digits, and
-underscores only; hyphens are rejected
-- Artifact: **Container image**, URI `…/asl-demo-agent-demo:<IMAGE_TAG>`
+  underscores only; hyphens are rejected
+- Artifact: pick the same option as step 2
+  - **Container image** — URI `…/asl-demo-agent-demo:<IMAGE_TAG>`
+  - **Local upload** — choose
+    `agents/akto-demo-agent/deployment_package.zip` from this repo.
+    Runtime **Python 3.12**, entry point `main.py`.
+  - **S3 source** (optional) — same zip, after the optional upload in
+    step 2. Bucket `asl-demo-agent-code-<ACCOUNT_ID>-us-east-1`, prefix
+    `asl-demo-agent-demo/deployment_package.zip`, runtime **Python 3.12**,
+    entry point `main.py`. Leave version ID empty unless the bucket is
+    versioned. Do not prefix the entry point with
+    `opentelemetry-instrument`.
 - Execution role: `asl-demo-agent-execution-demo`
 - Inbound protocol (`serverProtocol`): **HTTP**
 - Inbound authorization: **AWS IAM** (leave any JWT/OAuth authorizer empty)
@@ -507,7 +572,10 @@ Reverse order, because targets and roles are referenced:
 1. Gateway targets, then both gateways
 2. AgentCore Runtime
 3. Interceptor Lambda, if created
-4. ECR repository (delete images first, or use **Delete** with force)
+4. ECR repository (delete images first, or use **Delete** with force),
+   or the S3 object and bucket if you used direct code deploy:
+   `aws s3 rm s3://asl-demo-agent-code-<ACCOUNT_ID>-us-east-1/asl-demo-agent-demo/deployment_package.zip`
+   then **S3** → bucket → **Empty** → **Delete**
 5. IAM roles `asl-gateway-service-role-demo`,
   `asl-demo-agent-execution-demo`, `asl-http-gateway-demo`, and policy
    `asl-http-gateway-invoke-demo`
