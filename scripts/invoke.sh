@@ -44,7 +44,10 @@ echo "endpoint:  ${ENDPOINT_URL}" >&2
 echo "runtime:   ${RUNTIME_ARN}" >&2
 echo "region:    ${REGION}" >&2
 
-if ! aws bedrock-agentcore invoke-agent-runtime \
+AWS_ARGS=()
+[ -n "${AWS_PROFILE:-}" ] && AWS_ARGS=(--profile "$AWS_PROFILE")
+
+if ! aws "${AWS_ARGS[@]}" bedrock-agentcore invoke-agent-runtime \
   --endpoint-url "$ENDPOINT_URL" \
   --agent-runtime-arn "$RUNTIME_ARN" \
   --qualifier DEFAULT \

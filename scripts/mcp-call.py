@@ -28,6 +28,15 @@ MCP_PROTOCOL_VERSION = os.environ.get("MCP_PROTOCOL_VERSION", "2025-03-26")
 TF_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "infra", "environments", "akto-demo")
 
 
+def _aws_cli(*args: str) -> list[str]:
+    command = ["aws"]
+    profile = os.environ.get("AWS_PROFILE")
+    if profile:
+        command.extend(["--profile", profile])
+    command.extend(args)
+    return command
+
+
 def _run(command: list[str]) -> str:
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:
@@ -53,7 +62,7 @@ def _gateway_url() -> str:
 
 
 def _credentials() -> dict:
-    return json.loads(_run(["aws", "configure", "export-credentials", "--format", "process"]))
+    return json.loads(_run(_aws_cli("configure", "export-credentials", "--format", "process")))
 
 
 def _sign(key: bytes, message: str) -> bytes:
