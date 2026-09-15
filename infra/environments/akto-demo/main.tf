@@ -33,6 +33,7 @@ module "demo_agent" {
   mcp_target_prefix = "mac-akto-api-mcp"
 
   container_image_tag = var.image_tag
+  create_runtime      = var.create_container_runtime
 
   tags = local.common_tags
 }
@@ -44,7 +45,7 @@ module "http_gateway" {
   environment  = var.environment
   aws_region   = var.aws_region
 
-  runtime_arn = module.demo_agent.agent_runtime_arn
+  runtime_arn = var.external_runtime_arn != "" ? var.external_runtime_arn : module.demo_agent.agent_runtime_arn
   target_name = var.http_target_name
 
   tags = local.common_tags

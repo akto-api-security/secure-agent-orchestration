@@ -24,19 +24,32 @@ SERVICE = "bedrock-agentcore"
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 TARGET_PREFIX = os.environ.get("MCP_TARGET_PREFIX", "mac-akto-api-mcp")
 TIMEOUT_SECONDS = int(os.environ.get("MCP_TIMEOUT_SECONDS", "900"))
-MCP_PROTOCOL_VERSION = "2025-11-25"
+MCP_PROTOCOL_VERSION = os.environ.get("MCP_PROTOCOL_VERSION", "2025-03-26")
 TF_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "infra", "environments", "akto-demo")
 
 
 def _run(command: list[str]) -> str:
-    return subprocess.run(command, check=True, capture_output=True, text=True).stdout.strip()
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip() or f"exit {result.returncode}"
+        print(f"command failed: {' '.join(command)}\n{detail}", file=sys.stderr)
+        raise SystemExit(1)
+    return result.stdout.strip()
 
 
 def _gateway_url() -> str:
     url = os.environ.get("MCP_GATEWAY_URL")
     if url:
         return url
-    return _run(["terraform", f"-chdir={TF_DIR}", "output", "-raw", "mcp_gateway_url"])
+    try:
+        return _run(["terraform", f"-chdir={TF_DIR}", "output", "-raw", "mcp_gateway_url"])
+    except SystemExit:
+        print(
+            "Set MCP_GATEWAY_URL when not using Terraform state (console-deployed stack), e.g.\n"
+            '  export MCP_GATEWAY_URL="https://asl-gateway-demo-....gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp"',
+            file=sys.stderr,
+        )
+        raise
 
 
 def _credentials() -> dict:

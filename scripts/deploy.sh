@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Deploy Client -> HTTP Gateway -> Runtime -> MCP Gateway -> tools.
+# Deploy Client -> HTTP Gateway -> Runtime -> MCP Gateway -> tools (ECR image).
+# For the prebuilt zip (no Docker), use scripts/deploy-zip.sh instead.
 # Usage: scripts/deploy.sh [image-tag]
 # Set AUTO_APPROVE=1 to skip the prompts and Terraform approvals.
 set -euo pipefail

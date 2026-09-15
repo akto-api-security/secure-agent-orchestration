@@ -56,6 +56,12 @@ variable "mcp_target_prefix" {
   type        = string
 }
 
+variable "create_runtime" {
+  description = "When false, create IAM/ECR only; Runtime is deployed separately (zip path)."
+  type        = bool
+  default     = true
+}
+
 variable "container_image_tag" {
   description = <<-EOT
     Tag of the container image to deploy, already pushed to this agent's ECR

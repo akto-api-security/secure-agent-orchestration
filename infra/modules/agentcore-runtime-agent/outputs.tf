@@ -1,11 +1,11 @@
 output "agent_runtime_arn" {
   description = "ARN of the AgentCore Runtime for this agent."
-  value       = aws_bedrockagentcore_agent_runtime.this.agent_runtime_arn
+  value       = try(aws_bedrockagentcore_agent_runtime.this[0].agent_runtime_arn, "")
 }
 
 output "agent_runtime_id" {
   description = "Unique identifier of the AgentCore Runtime for this agent."
-  value       = aws_bedrockagentcore_agent_runtime.this.agent_runtime_id
+  value       = try(aws_bedrockagentcore_agent_runtime.this[0].agent_runtime_id, "")
 }
 
 output "execution_role_arn" {

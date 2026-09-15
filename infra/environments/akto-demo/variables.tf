@@ -27,3 +27,15 @@ variable "http_target_name" {
   type        = string
   default     = "demo-agent"
 }
+
+variable "create_container_runtime" {
+  description = "When false, skip ECR Runtime; use scripts/deploy-zip.sh instead."
+  type        = bool
+  default     = true
+}
+
+variable "external_runtime_arn" {
+  description = "Zip-deployed Runtime ARN for the HTTP Gateway (create_container_runtime=false)."
+  type        = string
+  default     = ""
+}

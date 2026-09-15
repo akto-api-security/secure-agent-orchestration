@@ -1,6 +1,8 @@
 # Omitting authorizer_configuration leaves inbound Runtime authorization on
 # AWS IAM. The outer Gateway signs Runtime requests with its service role.
 resource "aws_bedrockagentcore_agent_runtime" "this" {
+  count = var.create_runtime ? 1 : 0
+
   agent_runtime_name = var.agent_runtime_name
   description        = var.description
   role_arn           = aws_iam_role.execution.arn
