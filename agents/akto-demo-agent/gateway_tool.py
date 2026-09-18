@@ -17,7 +17,14 @@ from strands.tools.mcp import MCPAgentTool
 
 logger = logging.getLogger(__name__)
 
-GATEWAY_URL = os.environ["GATEWAY_URL"]
+def _normalize_gateway_url(url: str) -> str:
+    url = url.rstrip("/")
+    if not url.endswith("/mcp"):
+        url = f"{url}/mcp"
+    return url
+
+
+GATEWAY_URL = _normalize_gateway_url(os.environ["GATEWAY_URL"])
 GATEWAY_REGION = os.environ.get("GATEWAY_REGION") or boto3.Session().region_name or "us-east-1"
 TARGET_PREFIX = os.environ.get("MCP_TARGET_PREFIX", "")
 MCP_PROTOCOL_VERSION = os.environ.get("MCP_PROTOCOL_VERSION", "2025-03-26")

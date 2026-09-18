@@ -20,14 +20,14 @@ data "aws_iam_policy_document" "assume_role" {
       test     = "ArnLike"
       variable = "aws:SourceArn"
       values = [
-        "arn:aws:bedrock-agentcore:${var.aws_region}:${data.aws_caller_identity.current.account_id}:gateway/asl-http-gateway-${var.environment}-*",
+        "arn:aws:bedrock-agentcore:${var.aws_region}:${data.aws_caller_identity.current.account_id}:gateway/asl-${var.gateway_key}-${var.environment}-*",
       ]
     }
   }
 }
 
 resource "aws_iam_role" "gateway" {
-  name               = "asl-http-gateway-${var.environment}"
+  name               = "asl-${var.gateway_key}-${var.environment}"
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
   tags               = var.tags
 }
@@ -55,7 +55,7 @@ data "aws_iam_policy_document" "gateway" {
 }
 
 resource "aws_iam_role_policy" "gateway" {
-  name   = "asl-http-gateway-${var.environment}"
+  name   = "asl-${var.gateway_key}-${var.environment}"
   role   = aws_iam_role.gateway.id
   policy = data.aws_iam_policy_document.gateway.json
 }
@@ -70,8 +70,8 @@ data "aws_iam_policy_document" "invoke_gateway" {
 }
 
 resource "aws_iam_policy" "invoke_gateway" {
-  name        = "asl-http-gateway-invoke-${var.environment}"
-  description = "Allows a caller to invoke the HTTP Gateway in front of the demo Runtime."
+  name        = "asl-${var.gateway_key}-invoke-${var.environment}"
+  description = "Allows a caller to invoke the HTTP Gateway (asl-${var.gateway_key}-${var.environment})."
   policy      = data.aws_iam_policy_document.invoke_gateway.json
   tags        = var.tags
 }

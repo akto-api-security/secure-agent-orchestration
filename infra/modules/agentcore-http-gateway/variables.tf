@@ -13,6 +13,12 @@ variable "aws_region" {
   type        = string
 }
 
+variable "gateway_key" {
+  description = "Short name for gateway and IAM resources (asl-<gateway_key>-<environment>)."
+  type        = string
+  default     = "http-gateway"
+}
+
 variable "runtime_arn" {
   description = "AgentCore Runtime ARN routed through this HTTP Gateway."
   type        = string

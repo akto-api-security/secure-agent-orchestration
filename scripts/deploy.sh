@@ -9,7 +9,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$SCRIPT_DIR/.."
 TF_DIR="$ROOT_DIR/infra/environments/akto-demo"
 BOOTSTRAP_DIR="$ROOT_DIR/infra/bootstrap"
-AGENT_DIR="$ROOT_DIR/agents/akto-demo-agent"
+DOCS_AGENT_DIR="$ROOT_DIR/agents/akto-demo-agent"
+ROVO_AGENT_DIR="$ROOT_DIR/agents/rovo-demo-agent"
 
 VERSION="${1:-build-$(date -u +%Y%m%d%H%M%S)}"
 REGION="${AWS_REGION:-us-east-1}"
@@ -43,8 +44,8 @@ TF_VARS=(
 )
 
 bold "=== AgentCore topology deploy, image=$VERSION ==="
-echo "Creates one HTTP Gateway, one Runtime, one MCP Gateway, two MCP targets,"
-echo "the Runtime image repository, and least-privilege IAM."
+echo "Creates two HTTP Gateways, two Runtimes, one shared MCP Gateway,"
+echo "MCP targets (docs + demo-guardrails), ECR repos, and least-privilege IAM."
 echo
 
 if ! confirm "Continue?"; then
@@ -55,33 +56,41 @@ fi
 bold "=== terraform init ==="
 terraform -chdir="$TF_DIR" init -backend-config=backend.hcl
 
-bold "=== create ECR repository ==="
+bold "=== create ECR repositories ==="
 terraform -chdir="$TF_DIR" apply \
   "${TF_VARS[@]}" \
   "${APPROVE_FLAG[@]+"${APPROVE_FLAG[@]}"}" \
-  -target=module.demo_agent.aws_ecr_repository.this
+  -target=module.demo_agent.aws_ecr_repository.this \
+  -target=module.rovo_demo_agent.aws_ecr_repository.this
 
-REPO_URL="$(terraform -chdir="$TF_DIR" output -raw demo_agent_ecr_repository_url)"
-if [ -z "$REPO_URL" ]; then
-  echo "Could not read demo_agent_ecr_repository_url." >&2
+DOCS_REPO_URL="$(terraform -chdir="$TF_DIR" output -raw demo_agent_ecr_repository_url)"
+ROVO_REPO_URL="$(terraform -chdir="$TF_DIR" output -raw rovo_demo_agent_ecr_repository_url)"
+if [ -z "$DOCS_REPO_URL" ] || [ -z "$ROVO_REPO_URL" ]; then
+  echo "Could not read ECR repository URLs." >&2
   exit 1
 fi
 
-REGISTRY="${REPO_URL%%/*}"
-bold "=== build and push $REPO_URL:$VERSION ==="
+REGISTRY="${DOCS_REPO_URL%%/*}"
+bold "=== build and push agent images ($VERSION) ==="
 aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$REGISTRY"
-docker buildx build --platform linux/arm64 -t "${REPO_URL}:${VERSION}" --push "$AGENT_DIR"
+docker buildx build --platform linux/arm64 -t "${DOCS_REPO_URL}:${VERSION}" --push "$DOCS_AGENT_DIR"
+docker buildx build --platform linux/arm64 -t "${ROVO_REPO_URL}:${VERSION}" --push "$ROVO_AGENT_DIR"
 
 bold "=== deploy complete topology ==="
 terraform -chdir="$TF_DIR" apply "${TF_VARS[@]}" "${APPROVE_FLAG[@]+"${APPROVE_FLAG[@]}"}"
 
 bold "=== done ==="
-echo "HTTP Gateway:  $(terraform -chdir="$TF_DIR" output -raw http_gateway_url)"
-echo "HTTP target:   $(terraform -chdir="$TF_DIR" output -raw http_gateway_target_name)"
-echo "Agent Runtime: $(terraform -chdir="$TF_DIR" output -raw demo_agent_runtime_arn)"
-echo "MCP Gateway:   $(terraform -chdir="$TF_DIR" output -raw mcp_gateway_url)"
+echo "Docs HTTP Gateway:  $(terraform -chdir="$TF_DIR" output -raw http_gateway_url)"
+echo "Docs HTTP target:   $(terraform -chdir="$TF_DIR" output -raw http_gateway_target_name)"
+echo "Docs Runtime:       $(terraform -chdir="$TF_DIR" output -raw demo_agent_runtime_arn)"
+echo "Rovo HTTP Gateway:  $(terraform -chdir="$TF_DIR" output -raw rovo_http_gateway_url)"
+echo "Rovo HTTP target:   $(terraform -chdir="$TF_DIR" output -raw rovo_http_gateway_target_name)"
+echo "Rovo Runtime:       $(terraform -chdir="$TF_DIR" output -raw rovo_demo_agent_runtime_arn)"
+echo "MCP Gateway:        $(terraform -chdir="$TF_DIR" output -raw mcp_gateway_url)"
 echo
-echo "Ask it:"
+echo "Docs agent:"
 echo "  scripts/invoke.sh \"What does API security testing cover?\""
-echo "Smoke test:"
 echo "  scripts/smoke-test.sh"
+echo "Rovo demo agent:"
+echo "  scripts/invoke-rovo-demo.sh \"I uploaded a Backlog Guide. Organize my Jira backlog.\""
+echo "  scripts/smoke-test-rovo-demo.sh"

@@ -46,12 +46,21 @@ def _run(command: list[str]) -> str:
     return result.stdout.strip()
 
 
+def _normalize_gateway_url(url: str) -> str:
+    url = url.rstrip("/")
+    if not url.endswith("/mcp"):
+        url = f"{url}/mcp"
+    return url
+
+
 def _gateway_url() -> str:
     url = os.environ.get("MCP_GATEWAY_URL")
     if url:
-        return url
+        return _normalize_gateway_url(url)
     try:
-        return _run(["terraform", f"-chdir={TF_DIR}", "output", "-raw", "mcp_gateway_url"])
+        return _normalize_gateway_url(
+            _run(["terraform", f"-chdir={TF_DIR}", "output", "-raw", "mcp_gateway_url"])
+        )
     except SystemExit:
         print(
             "Set MCP_GATEWAY_URL when not using Terraform state (console-deployed stack), e.g.\n"
@@ -62,6 +71,18 @@ def _gateway_url() -> str:
 
 
 def _credentials() -> dict:
+    # Prefer profile export when AWS_PROFILE is set — stale AWS_ACCESS_KEY_ID env
+    # vars from an old session often linger and override a fresh `aws login`.
+    if os.environ.get("AWS_PROFILE"):
+        return json.loads(_run(_aws_cli("configure", "export-credentials", "--format", "process")))
+    access_key = os.environ.get("AWS_ACCESS_KEY_ID")
+    secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    if access_key and secret_key:
+        creds = {"AccessKeyId": access_key, "SecretAccessKey": secret_key}
+        token = os.environ.get("AWS_SESSION_TOKEN")
+        if token:
+            creds["SessionToken"] = token
+        return creds
     return json.loads(_run(_aws_cli("configure", "export-credentials", "--format", "process")))
 
 
@@ -129,7 +150,18 @@ def _post(payload: dict) -> int:
 
     print(f"HTTP {status}")
     try:
-        print(json.dumps(json.loads(text), indent=2))
+        parsed = json.loads(text)
+        print(json.dumps(parsed, indent=2))
+        if isinstance(parsed, dict) and parsed.get("Output", {}).get("__type", "").endswith(
+            "UnknownOperationException"
+        ):
+            print(
+                "\nHint: POST likely hit the gateway root instead of /mcp. Set:\n"
+                '  export MCP_GATEWAY_URL="https://<gateway-id>.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp"\n'
+                '  export MCP_TARGET_PREFIX="demo-guardrails-mcp"',
+                file=sys.stderr,
+            )
+            return 1
     except json.JSONDecodeError:
         print(text)
     return 0 if status == 200 else 1

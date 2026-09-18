@@ -15,6 +15,11 @@ PROMPT="${1:-What does API security testing cover in Akto?}"
 REGION="${AWS_REGION:-us-east-1}"
 READ_TIMEOUT="${INVOKE_READ_TIMEOUT:-900}"
 
+if [ -n "${AWS_PROFILE:-}" ]; then
+  export AWS_SDK_LOAD_CONFIG=1
+  unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+fi
+
 if [ -n "${HTTP_GATEWAY_URL:-}" ]; then
   GATEWAY_URL="$HTTP_GATEWAY_URL"
 else

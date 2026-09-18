@@ -32,6 +32,12 @@ variable "mcp_targets" {
   }
 }
 
+variable "demo_guardrails_mcp_endpoint" {
+  description = "HTTPS MCP endpoint for the demo guardrails server (…/mcp). Empty skips the target."
+  type        = string
+  default     = ""
+}
+
 variable "tags" {
   description = "Common tags applied to every resource in this module."
   type        = map(string)

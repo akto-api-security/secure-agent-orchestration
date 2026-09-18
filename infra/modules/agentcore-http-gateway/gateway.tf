@@ -1,5 +1,5 @@
 resource "aws_bedrockagentcore_gateway" "this" {
-  name            = "asl-http-gateway-${var.environment}"
+  name            = "asl-${var.gateway_key}-${var.environment}"
   role_arn        = aws_iam_role.gateway.arn
   authorizer_type = "AWS_IAM"
 

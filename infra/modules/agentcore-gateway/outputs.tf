@@ -20,8 +20,13 @@ output "gateway_role_arn" {
 
 output "target_ids" {
   description = "Gateway target IDs, keyed by target name."
-  value = {
-    "mac-akto-api-mcp" = aws_bedrockagentcore_gateway_target.api_docs.target_id
-    "mac-akto-ai-mcp"  = aws_bedrockagentcore_gateway_target.ai_docs.target_id
-  }
+  value = merge(
+    {
+      "mac-akto-api-mcp" = aws_bedrockagentcore_gateway_target.api_docs.target_id
+      "mac-akto-ai-mcp"  = aws_bedrockagentcore_gateway_target.ai_docs.target_id
+    },
+    length(aws_bedrockagentcore_gateway_target.demo_guardrails) > 0 ? {
+      "demo-guardrails-mcp" = aws_bedrockagentcore_gateway_target.demo_guardrails[0].target_id
+    } : {}
+  )
 }

@@ -1,0 +1,78 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TfState",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"],
+      "Resource": [
+        "arn:aws:s3:::agentcore-gateway-demo-tfstate-887089841930",
+        "arn:aws:s3:::agentcore-gateway-demo-tfstate-887089841930/*"
+      ]
+    },
+    {
+      "Sid": "Ecr",
+      "Effect": "Allow",
+      "Action": ["ecr:GetAuthorizationToken"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcrRepos",
+      "Effect": "Allow",
+      "Action": "ecr:*",
+      "Resource": "arn:aws:ecr:us-east-1:887089841930:repository/asl-*"
+    },
+    {
+      "Sid": "IamRovo",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:GetRole",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:CreatePolicy",
+        "iam:DeletePolicy",
+        "iam:PassRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::887089841930:role/asl-*",
+        "arn:aws:iam::887089841930:policy/asl-*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "bedrock-agentcore.amazonaws.com",
+            "build.apprunner.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "HarnessDefaultRole",
+      "Effect": "Allow",
+      "Action": "iam:PutRolePolicy",
+      "Resource": "arn:aws:iam::887089841930:role/service-role/AmazonBedrockAgentCoreHarnessDefaultServiceRole-edend"
+    },
+    {
+      "Sid": "AgentCore",
+      "Effect": "Allow",
+      "Action": "bedrock-agentcore:*",
+      "Resource": "*"
+    },
+    {
+      "Sid": "AppRunner",
+      "Effect": "Allow",
+      "Action": "apprunner:*",
+      "Resource": "*"
+    },
+    {
+      "Sid": "Bedrock",
+      "Effect": "Allow",
+      "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
+      "Resource": "*"
+    }
+  ]
+}

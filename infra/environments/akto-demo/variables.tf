@@ -39,3 +39,33 @@ variable "external_runtime_arn" {
   type        = string
   default     = ""
 }
+
+variable "demo_guardrails_mcp_endpoint" {
+  description = "Public HTTPS MCP URL for examples/demo-guardrails-mcp (set by scripts/register-demo-mcp-target.sh)."
+  type        = string
+  default     = ""
+}
+
+variable "rovo_http_target_name" {
+  description = "Target path exposed by the Rovo demo HTTP Gateway."
+  type        = string
+  default     = "rovo-demo-agent"
+}
+
+variable "rovo_image_tag" {
+  description = "ECR image tag for the Rovo demo agent. Empty uses image_tag."
+  type        = string
+  default     = ""
+}
+
+variable "create_rovo_runtime" {
+  description = "When true, create the Rovo demo AgentCore Runtime from ECR."
+  type        = bool
+  default     = true
+}
+
+variable "create_rovo_harness" {
+  description = "When true, create the Rovo demo AgentCore Harness."
+  type        = bool
+  default     = true
+}

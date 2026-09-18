@@ -2,5 +2,8 @@ aws_region   = "us-east-1"
 project_name = "agentcore-gateway-demo"
 environment  = "demo"
 
-# This becomes /demo-agent/invocations on the outer HTTP Gateway.
+# Docs agent: /demo-agent/invocations on the original HTTP Gateway.
 http_target_name = "demo-agent"
+
+# Rovo exfil demo agent: /rovo-demo-agent/invocations on rovo-http-gateway.
+rovo_http_target_name = "rovo-demo-agent"
